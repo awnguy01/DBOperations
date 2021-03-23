@@ -1,0 +1,43 @@
+The goal in this project is to develop a command called 'sql' that accepts as input a string representing a SELECT statement, and runs it by translating it into a pipe of Unix commands.
+Suppose you have a file customer.csv and you'd like to ask:
+
+SELECT name, address
+WHERE zip = 40205
+
+You can do this in the command line assuming that '40205' is a value that can only appear in the zip attribute; you can use 'grep' for the WHERE clause and 'cut' for the projection. Now assume you'd like to ask:
+
+SELECT name, address
+WHERE age > 20 and city = 'New York'
+
+You cannot do this now in the command line because: you can't ask for 'age > 20', and 'New York' can appear in attributes other than city (state). So we added a command 'select' which will allow you create your pipeline and have this done in the command line.
+
+We have developed a 'select' command that provides the ability to deal with numerical conditions, and a 'group' command that implements GROUP BY. But you have to write the pipeline of commands. Ultimately, we want the user to be able to write
+
+>sql "select name, address from customer.csv where age > 20 and city = 'New York'"
+
+and have the system translate that into a pipeline of commands. The specs for this command are as follows: the command takes a string as input. The string represents an SQL SELECT statement (no subqueries) with file names on FROM clause. Syntax allowed:
+SELECT at,..
+FROM f1,...
+WHERE c
+GROUP BY
+ORDER BY
+LIMIT n
+Where the 'at' are attribute names, field-references (#n) or an aggregate applied to an 'at'; FROM is followed by 1 or more file names together with an '-h' flag (indicating whether the file has a header or not); WHERE is followed by a simple condition (no subqueries); GROUP BY, ORDER BY and LIMIT are as usual.
+
+The string is first parsed to make sure it's legal; using a simplified SQL parser would be ok, but note that one still has to open the files in FROM and make sure all references are legitimate. For instance, to say "SELECT #5 FROM sample.csv" referencing a 5th field is not ok if the file sample.csv has only 4 columns. Also, if more than one file is mentioned in FROM, references by number (as in the previous example) may be ambiguous, so probably we need to enforce removal of ambiguity. For instance, "SELECT sample.#4, people.#3 FROM sample.csv, people.csv ...." is ok because it tells us where each attribute comes from (the 4th attribute of sample.csv, the 3rd of people.csv). Finally, if a file has headers, it's ok to use column names from the headers instead of numbers -but this is only valid for files with headers. Note that files with and without headers may be mixed in the FROM clause.
+
+Once parsed, the query is mapped to a sequence of operations (a pipe) as follows:
+-using SELECT, projections are deduced for each file. These are used by putting a 'cut' command after each 'cat' or 'select'.
+-using WHERE, conditions are pushed down to each file. A file is read using 'select' -or 'cat' if no condition available.
+-any files involved in a join result in a 'sort', then a 'join' call. If there are more than two files, they are joined in the order in which they are written, two at a time (note that we need to create temporary results).
+-GROUP BY is executed by calling 'sort' and 'uniq' if no aggregations, or calling 'group' with aggregations.
+-aggregations alone are computed calling 'agg'
+-ORDER BY is computed by calling 'sort'
+-LIMIT is computing by calling 'head'.
+
+The following operations are already implemented:
+-'select' <condition> <file>
+-'agg' <function><attribute> <file>: computes the given aggregate on input file. For now, <function> is one of: COUNT, SUM, AVG, MIN, MAX. Note: don't forget conversion from string to numeric value! Note: should be extended to a list of (function, attribute).
+-'group' <grouping> <aggs>: it creates groups (by calling sort) and applies aggregates on each group. Try to project as soon as possible.
+
+
