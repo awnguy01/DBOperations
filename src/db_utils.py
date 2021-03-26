@@ -13,7 +13,8 @@ def scan_directory():
         try:
             if ext == '.csv':
                 with open(fname) as f:
-                    header: List[str] = f.readline().strip().split(sep=',')
+                    header: List[str] = map(
+                        lambda column: column.upper(), f.readline().strip().split(sep=','))
                     db.add_table(os.path.basename(path), header)
         except:
             raise Exception('Failed to read database from directory')

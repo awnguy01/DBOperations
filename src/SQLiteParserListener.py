@@ -404,6 +404,24 @@ class SQLiteParserListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by SQLiteParser#group_by_clause.
+    def enterGroup_by_clause(self, ctx:SQLiteParser.Group_by_clauseContext):
+        pass
+
+    # Exit a parse tree produced by SQLiteParser#group_by_clause.
+    def exitGroup_by_clause(self, ctx:SQLiteParser.Group_by_clauseContext):
+        pass
+
+
+    # Enter a parse tree produced by SQLiteParser#having_clause.
+    def enterHaving_clause(self, ctx:SQLiteParser.Having_clauseContext):
+        pass
+
+    # Exit a parse tree produced by SQLiteParser#having_clause.
+    def exitHaving_clause(self, ctx:SQLiteParser.Having_clauseContext):
+        pass
+
+
     # Enter a parse tree produced by SQLiteParser#factored_select_stmt.
     def enterFactored_select_stmt(self, ctx:SQLiteParser.Factored_select_stmtContext):
         pass

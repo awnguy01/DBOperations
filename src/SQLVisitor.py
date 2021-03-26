@@ -35,8 +35,18 @@ class SQLVisitor(SQLiteParserVisitor):
             raise Exception('No database schema found')
         result_columns: List[Result_Column] = map(
             lambda result_column: self.visitResult_column(result_column), ctx.result_column())
-        tables: List[Table] = map(lambda table_or_subquery: self.visitTable_or_subquery(
-            table_or_subquery), ctx.table_or_subquery())
+        tables: List[Table] = list(map(lambda table_or_subquery: self.visitTable_or_subquery(
+            table_or_subquery), ctx.table_or_subquery()))
+
+        for table in tables:
+            if table.table_name not in db.schema:
+                raise Exception(table.table_name + ' not in database schema')
+
+        group_by_columns: List[Result_Column] = []
+
+        if ctx.group_by_clause():
+            group_by_columns = self.visitGroup_by_clause(ctx.group_by_clause())
+
         for result_column in result_columns:
             if result_column.table_name:
                 schema_table = next(
@@ -44,7 +54,7 @@ class SQLVisitor(SQLiteParserVisitor):
 
                 if not schema_table:
                     raise Exception(result_column.table_name +
-                                    ' not found in schema')
+                                    ' not found in database schema')
 
                 header = db.schema[(schema_table).upper()]
 
@@ -62,6 +72,12 @@ class SQLVisitor(SQLiteParserVisitor):
                 if not col_found:
                     raise Exception(result_column.column_name +
                                     ' not found in any tables')
+            if group_by_columns:
+                if result_column.is_star:
+                    raise Exception('Cannot select * with GROUP BY clause')
+                elif result_column.column_name not in group_by_columns:
+                    raise Exception(result_column.column_name +
+                                    ' not in GROUP BY clause')
 
         return True
 
@@ -88,6 +104,17 @@ class SQLVisitor(SQLiteParserVisitor):
                 ctx.table_alias()).upper()
         return table
 
+    def visitGroup_by_clause(self, ctx: SQLiteParser.Group_by_clauseContext):
+        cols: List[Result_Column] = []
+        for expr in ctx.expr():
+            col = Result_Column()
+            if expr.table_name():
+                col.table_name = self.visitTable_name(expr.table_name())
+            if expr.column_name():
+                col.column_name = self.visitColumn_name(expr.column_name())
+            cols.append(col)
+        return cols
+
     def visitTable_name(self, ctx: SQLiteParser.Table_nameContext):
         return self.visitAny_name(ctx.any_name())
 
@@ -95,13 +122,13 @@ class SQLVisitor(SQLiteParserVisitor):
         return self.visitAny_name(ctx.any_name())
 
     def visitColumn_name(self, ctx: SQLiteParser.Column_nameContext):
-        return self.visitAny_name(ctx.any_name())
+        return self.visitAny_name(ctx.any_name()).upper()
 
     def visitColumn_alias(self, ctx: SQLiteParser.Column_aliasContext):
         if ctx.STRING_LITERAL():
-            return ctx.STRING_LITERAL().getText()
+            return ctx.STRING_LITERAL().getText().upper()
         else:
-            return ctx.IDENTIFIER().getText()
+            return ctx.IDENTIFIER().getText().upper()
 
     def visitAny_name(self, ctx: SQLiteParser.Any_nameContext):
         if ctx.STRING_LITERAL():

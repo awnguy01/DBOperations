@@ -30,6 +30,7 @@ CLOSE_PAR: ')';
 COMMA: ',';
 ASSIGN: '=';
 STAR: '*';
+HASH: '#';
 PLUS: '+';
 MINUS: '-';
 TILDE: '~';
@@ -218,6 +219,8 @@ IDENTIFIER:
 NUMERIC_LITERAL:
 	((DIGIT+ ('.' DIGIT*)?) | ('.' DIGIT+)) (E [-+]? DIGIT+)?
 	| '0x' HEX_DIGIT+;
+
+REF_FIELD: ('#' DIGIT+);	
 
 BIND_PARAMETER: '?' DIGIT* | [:@$] IDENTIFIER;
 

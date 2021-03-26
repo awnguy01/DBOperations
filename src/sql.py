@@ -3,11 +3,6 @@ import argparse
 from SQLiteParser import SQLiteParser
 from SQLiteLexer import SQLiteLexer
 from SQLVisitor import SQLVisitor
-from database import Database
-from typing import List
-import sqlparse
-from sqlparse.sql import Comparison, Identifier, IdentifierList, TokenList, Where
-from sqlparse.tokens import Token
 
 from antlr4 import *
 

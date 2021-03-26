@@ -358,9 +358,7 @@ select_core:
 				table_or_subquery (',' table_or_subquery)*
 				| join_clause
 			)
-		)? (WHERE expr)? (
-			GROUP BY expr (',' expr)* (HAVING expr)?
-		)? (
+		)? (WHERE expr)? (group_by_clause)? (
 			WINDOW window_name AS window_defn (
 				',' window_name AS window_defn
 			)*
@@ -369,6 +367,11 @@ select_core:
 	| VALUES '(' expr (',' expr)* ')' (
 		',' '(' expr ( ',' expr)* ')'
 	)*;
+
+group_by_clause: 
+	GROUP BY expr (',' expr)* having_clause?;
+
+having_clause: HAVING expr;
 
 factored_select_stmt: select_stmt;
 
@@ -396,6 +399,7 @@ table_or_subquery: (
 		| join_clause
 	) ')'
 	| ('(' select_stmt ')' ( AS? table_alias)?);
+
 
 result_column:
 	'*'
@@ -759,4 +763,5 @@ any_name:
 	IDENTIFIER
 	| keyword
 	| STRING_LITERAL
+	| REF_FIELD
 	| '(' any_name ')';
