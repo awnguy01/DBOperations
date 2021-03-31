@@ -15,7 +15,7 @@ def scan_directory():
                 with open(fname) as f:
                     header: List[str] = map(
                         lambda column: column.upper(), f.readline().strip().split(sep=','))
-                    db.add_table(os.path.basename(path), header)
+                    db.add_table(os.path.basename(path), list(header))
         except:
             raise Exception('Failed to read database from directory')
     return db

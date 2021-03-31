@@ -75,7 +75,7 @@ class SQLVisitor(SQLiteParserVisitor):
             if group_by_columns:
                 if result_column.is_star:
                     raise Exception('Cannot select * with GROUP BY clause')
-                elif result_column.column_name not in group_by_columns:
+                elif result_column.column_name not in map(lambda col: col.column_name, group_by_columns):
                     raise Exception(result_column.column_name +
                                     ' not in GROUP BY clause')
 
