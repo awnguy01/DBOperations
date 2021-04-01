@@ -229,6 +229,11 @@ class SQLiteParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by SQLiteParser#where_clause.
+    def visitWhere_clause(self, ctx:SQLiteParser.Where_clauseContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by SQLiteParser#group_by_clause.
     def visitGroup_by_clause(self, ctx:SQLiteParser.Group_by_clauseContext):
         return self.visitChildren(ctx)

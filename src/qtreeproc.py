@@ -1,44 +1,35 @@
-from applycond import apply_logicalop,apply_condition
+from applycond import apply_logicalop, apply_condition
 
 
-
-def run1_query_tree(tree,line, arguments):
+def run1_query_tree(tree, line, headers):
     '''
     Returns a boolean after applying the query tree on the input line
     :param tree: Query  tree
     :param line: line read from the input data file
     :return: applies conditional operators to return a Boolean
     '''
+    root, lefttree, righttree = ['', '', '']
 
-    if type(tree) == tuple:
+    if type(tree) in [tuple, list]:
         root, lefttree, righttree = tree
 
-    #root = root.lower()
+    root = root.upper()
 
-    if root != 'and' and root!= 'or' and root!= 'not':
-        #print(f'Performing select operation ({root},{lefttree},{righttree})')
-        eval = apply_condition((root, lefttree, righttree), line, arguments)
-        #print(f'Performed select operation ({root},{lefttree},{righttree}):: eval {eval}')
-        return eval
+    if root != 'AND' and root != 'OR' and root != 'NOT':
+        return apply_condition((root, lefttree, righttree), line, headers)
 
-    #evaluate left tree
+    # evaluate left tree
 
-    left_value = run1_query_tree(lefttree,line,arguments)
+    left_value = run1_query_tree(lefttree, line, headers)
 
+    # evaluate right tree
 
-    #evaluate right tree
-
-    #Pruning the Query Tree to minimize the operations
-    if root == 'and' and left_value == False:
+    # Pruning the Query Tree to minimize the operations
+    if root == 'AND' and left_value == False:
         right_value = left_value
-    elif root == 'or' and left_value == True:
+    elif root == 'OR' and left_value == True:
         right_value = left_value
     else:
-        right_value =  run1_query_tree(righttree,line,arguments)
-    #print("performing select operation",right_value)
+        right_value = run1_query_tree(righttree, line, headers)
 
-    logicaleval = apply_logicalop(root, left_value, right_value)
-    #print(f'{lefttree} {root} {righttree}::{left_value} {root} {right_value}:: finaleval {logicaleval}')
-    return logicaleval
-
-
+    return apply_logicalop(root, left_value, right_value)

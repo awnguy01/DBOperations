@@ -404,6 +404,15 @@ class SQLiteParserListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by SQLiteParser#where_clause.
+    def enterWhere_clause(self, ctx:SQLiteParser.Where_clauseContext):
+        pass
+
+    # Exit a parse tree produced by SQLiteParser#where_clause.
+    def exitWhere_clause(self, ctx:SQLiteParser.Where_clauseContext):
+        pass
+
+
     # Enter a parse tree produced by SQLiteParser#group_by_clause.
     def enterGroup_by_clause(self, ctx:SQLiteParser.Group_by_clauseContext):
         pass

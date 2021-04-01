@@ -1,4 +1,6 @@
-import re,sys
+import re
+import sys
+
 
 def get_type(op):
     '''
@@ -10,7 +12,7 @@ def get_type(op):
     if op.isdecimal():
         return int(op)
     else:
-        if re.match(r'\d+\.\d+',op):
+        if re.match(r'\d+\.\d+', op):
             return float(op)
         else:
             return op
@@ -20,31 +22,26 @@ def get_type(op):
         #     return op
 
 
-def myeval(op, line, arguments, data_type):
+def myeval(op, line, headers, data_type):
     '''
     Extracts the column value from the line, converts column value and constant into appropriate python types
     :param op: op can be column reference or constant
     :param line: line read from the input data file
     :return: column and constant converted into appropriate types
     '''
-    fields = line.split(arguments[4])
-    index = op[1:]
+    fields = line.split(',')
     # if a column is referred by a number
-    if index.isdecimal():
-       index = int(index)
-       cvalue = fields[index - 1]
-       #return get_type(cvalue)
-       return type_conversion(cvalue,data_type)
+    if op[1:].isdecimal():
+        cvalue = fields[int(op[1:]) - 1]
+        return type_conversion(cvalue, data_type)
     # if a column is referred by its name
     else:
-        cvalue = fields[arguments[-1][index]]
-        #return get_type(cvalue)
-        return type_conversion(cvalue,data_type)
+        cvalue = fields[headers.index(op.upper())]
+        return type_conversion(cvalue, data_type)
 
-def type_conversion(val,data_type):
-    if data_type == int:
-        return int(val)
-    elif data_type == float:
+
+def type_conversion(val, data_type):
+    if data_type in [int, float]:
         return float(val)
     elif data_type == str:
         return val
@@ -53,33 +50,33 @@ def type_conversion(val,data_type):
         sys.exit(-1)
 
 
-
-def apply_condition(condition, line, arguments):
+def apply_condition(condition, line, headers):
     '''
     Returns evaluation of a condition on a line from the input data file
     :param condition: condition to apply on the operands
     :param line: line read from the input data file
     :return: True or False
     '''
-    if (condition[0] == '>'):
-        return (myeval(condition[1], line, arguments, type(condition[2])) > condition[2])
+    if condition[0] == '':
+        return False
+    elif (condition[0] == '>'):
+        return (myeval(condition[1], line, headers, type(condition[2])) > condition[2])
     elif (condition[0] == '<'):
-        return (myeval(condition[1], line, arguments, type(condition[2])) < condition[2])
+        return (myeval(condition[1], line, headers, type(condition[2])) < condition[2])
     elif (condition[0] == '<='):
-        return (myeval(condition[1], line, arguments, type(condition[2])) <= condition[2])
+        return (myeval(condition[1], line, headers, type(condition[2])) <= condition[2])
     elif (condition[0] == '>='):
-        return (myeval(condition[1], line, arguments, type(condition[2])) >= condition[2])
+        return (myeval(condition[1], line, headers, type(condition[2])) >= condition[2])
     elif (condition[0] == '=='):
-        #print(myeval(condition[1],line),myeval(condition[2],line))
-        return (myeval(condition[1], line, arguments, type(condition[2])) == condition[2])
+        return (myeval(condition[1], line, headers, type(condition[2])) == condition[2])
     elif (condition[0] == '!='):
-        return (myeval(condition[1], line, arguments, type(condition[2])) != condition[2])
+        return (myeval(condition[1], line, headers, type(condition[2])) != condition[2])
     else:
         print("wrong or unallowed operator!")
         exit(-1)
 
 
-def apply_logicalop(condition,op1,op2=None):
+def apply_logicalop(condition: str, op1, op2=False):
     '''
     Evaluates Logical Operation between two logical inputs
     :param condition:
@@ -87,12 +84,11 @@ def apply_logicalop(condition,op1,op2=None):
     :param op2: Optional Boolean
     :return: returns evaluation of op1,op2 as Boolean
     '''
-    if condition == 'and':
-         return op2 if op1 else False
-    elif condition == "or":
-         return True if op1 else op2
-    elif condition == 'not':
+    if condition.upper() == 'AND':
+        return op1 and op2
+    elif condition.upper() == "OR":
+        return op1 or op2
+    elif condition.upper() == 'NOT':
         return not (op1)
     else:
-        print("something wrong with the condition you passed")
-
+        print("invalid logical operator")

@@ -358,7 +358,7 @@ select_core:
 				table_or_subquery (',' table_or_subquery)*
 				| join_clause
 			)
-		)? (WHERE expr)? (group_by_clause)? (
+		)? where_clause? group_by_clause? (
 			WINDOW window_name AS window_defn (
 				',' window_name AS window_defn
 			)*
@@ -367,6 +367,9 @@ select_core:
 	| VALUES '(' expr (',' expr)* ')' (
 		',' '(' expr ( ',' expr)* ')'
 	)*;
+
+where_clause:
+	WHERE expr;
 
 group_by_clause: 
 	GROUP BY expr (',' expr)* having_clause?;
