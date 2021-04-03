@@ -42,9 +42,7 @@ def myeval(op, line, arguments, data_type):
         return type_conversion(cvalue,data_type)
 
 def type_conversion(val,data_type):
-    if data_type == int:
-        return int(val)
-    elif data_type == float:
+    if data_type in [int, float]:
         return float(val)
     elif data_type == str:
         return val

@@ -149,7 +149,7 @@ def myselect(arguments,firstline):
         colstoproject = []
         for colref in projection.split(','):
             if colref[1:].isdecimal():
-                if colref[1:] not in range(0, totalcols):
+                if int(colref[1:]) not in range(totalcols + 1):
                     raise Exception("The column referenced in projection by number is invalid")
                 colstoproject.append(int(colref[1:])-1)
             else:
@@ -162,7 +162,7 @@ def myselect(arguments,firstline):
         if projection:
             for line in myinput:
                 if run1_query_tree(condition, line, arguments):
-                    line = projection_cols(line,colstoproject)
+                    line = projection_cols(line,colstoproject,splitter)
                     myoutput.write(line)
 
         # projection is not required here
@@ -192,13 +192,13 @@ def myselect(arguments,firstline):
 
             # selection performed on the first line
             if run1_query_tree(condition, firstline, arguments):
-                tooutput = projection_cols(firstline,colstoproject)
+                tooutput = projection_cols(firstline,colstoproject,splitter)
                 myoutput.write(tooutput)
 
             #selection performed on each of the rest of the lines
             for line in myinput:
                 if run1_query_tree(condition, line, arguments):
-                    tooutput = projection_cols(line,colstoproject)
+                    tooutput = projection_cols(line,colstoproject,splitter)
                     myoutput.write(tooutput)
         else:
             if run1_query_tree(condition, firstline, arguments):
@@ -208,15 +208,16 @@ def myselect(arguments,firstline):
                     myoutput.write(line)
 
 
-def projection_cols(line,projectedcols):
+def projection_cols(line,projectedcols,splitter):
     """
     The function takes a row and returns a modified row with required columns data
     :param line: line in the input
     :param projectedcols: cols to project to output
+    :param splitter: user-specified field delimiter
     :return: user interested columns data separated by a separator
     """
-    rowdata = line.split('|')
-    result ="|".join([rowdata[columnNumber] for columnNumber in projectedcols])
+    rowdata = line.split(splitter)
+    result = splitter.join([rowdata[columnNumber] for columnNumber in projectedcols])
     return result + '\n'
 
 
