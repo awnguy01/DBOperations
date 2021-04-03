@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # !/usr/bin/python3
 
 from argparse import ArgumentParser
@@ -23,15 +24,12 @@ def main():
         lexer = SQLiteLexer(in_stream)
         stream = CommonTokenStream(lexer)
         parser = SQLiteParser(stream)
-        validator = SQLVisitor()
-        parse_ctx = parser.parse()
-        valid = validator.visit(parse_ctx)
+        visitor = SQLVisitor()
+        valid = visitor.visit(parser.parse())
         if valid:
             print('SQL IS VALID')
         else:
             print('SQL IS NOT VALID')
-        executor = SQLExecutionVisitor()
-        executor.visit(parse_ctx)
 
     except Exception as e:
         print(e)
