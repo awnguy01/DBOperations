@@ -45,7 +45,6 @@ class ProjectionValidator(SQLiteParserVisitor):
                 source_match = source
                 break
             elif source.alias:
-                print('Alias is ' + source.alias.upper())
                 if source.alias.upper() == table_or_alias:
                     source_match = source
                     break
