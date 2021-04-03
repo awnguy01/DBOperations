@@ -11,7 +11,7 @@ def validate_sql(input: str):
     ctx = parse_context(input)
     try:
         TableValidator().visit(ctx)
-        # ProjectionValidator().visit(ctx)
+        ProjectionValidator().visit(ctx)
     except Exception as e:
         print(e)
         return False
