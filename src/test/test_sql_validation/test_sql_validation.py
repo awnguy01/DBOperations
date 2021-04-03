@@ -1,7 +1,15 @@
+import os
 import sys
 sys.path.append('../..')
 import pytest
 from src.sql import validate_sql
+
+@pytest.fixture(scope="function")
+def change_test_dir(request):
+    os.chdir(request.fspath.dirname)
+    yield
+    os.chdir(request.config.invocation_dir)
+
 
 @pytest.mark.parametrize(("sql, except_msg"), [
     ('SELECT * FROM bad', 'Source table "bad" not found in current working directory'),
@@ -18,8 +26,8 @@ from src.sql import validate_sql
     ('SELECT salary FROM employees_1 GROUP BY salary, hobbies', 'GROUP BY column "hobbies" was not found in any tables'),
     
 ])
-def test_negative_validation(sql, except_msg):
-    with pytest.raises(Exception) as excinfo:
-        validate_sql(sql)
-    print(excinfo.value)
-    assert str(excinfo.value) == except_msg
+def test_negative_validation(change_test_dir, sql, except_msg):
+    while(change_test_dir):
+        with pytest.raises(Exception) as excinfo:
+            validate_sql(sql)
+        assert str(excinfo.value) == except_msg
