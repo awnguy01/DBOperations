@@ -151,3 +151,6 @@ node_modules/
 package-lock.json
 .idea/workspace.xml
 .vscode/
+
+src/validators/antlr4/*
+!src/validators/antlr4/*.g4
