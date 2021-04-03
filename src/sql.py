@@ -1,22 +1,21 @@
-#!/usr/bin/python3
-import argparse
-from SQLExecutionVisitor import SQLExecutionVisitor
-from SQLiteParser import SQLiteParser
-from SQLiteLexer import SQLiteLexer
-from SQLVisitor import SQLVisitor
+# !/usr/bin/python3
 
-from antlr4 import *
+from argparse import ArgumentParser
+from local_antlr4.SQLiteLexer import SQLiteLexer
+from local_antlr4.SQLiteParser import SQLiteParser
+from local_antlr4.src.SQLVisitor import SQLVisitor
+from local_antlr4.src.SQLExecutionVisitor import SQLExecutionVisitor
+
+from antlr4 import InputStream, CommonTokenStream
 
 
 def user_interface():
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument('sql', nargs=1, help='SQL statement to run')
     return parser.parse_args()
 
 
 def main():
-    # database: Database = scan_directory()
-    # print(database)
 
     try:
         arguments = user_interface()
@@ -34,16 +33,6 @@ def main():
         executor = SQLExecutionVisitor()
         executor.visit(parse_ctx)
 
-        # sql_stmt = sqlparse.parse(arguments.sql[0])
-        # print(sql_stmt[0])
-        # tokens: TokenList = sql_stmt[0].tokens
-        # for token in tokens:
-        #     if isinstance(token, Where):
-        #         for w_token in token.tokens:
-        #             if isinstance(w_token, Comparison):
-        #                 print(w_token)
-
-        # print(arguments.sql)
     except Exception as e:
         print(e)
 

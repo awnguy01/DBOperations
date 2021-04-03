@@ -1,15 +1,13 @@
 import os
 from typing import List
-from SQLiteParser import SQLiteParser
-from SQLiteParserVisitor import SQLiteParserVisitor
+from .. import SQLiteParser
+from .. import SQLiteParserVisitor
 from sql_select import myselect
 from database import Database
 from db_utils import scan_directory
 from result_column import Result_Column
 from table import Table
 from models.select_args import SelectArgs
-from parse_cond import parsecondition
-
 
 class SQLExecutionVisitor(SQLiteParserVisitor):
     def visitParse(self, ctx: SQLiteParser.ParseContext):
