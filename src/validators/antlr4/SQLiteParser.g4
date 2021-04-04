@@ -224,7 +224,7 @@ drop_stmt:
 expr:
 	literal_value
 	| BIND_PARAMETER
-	| ( ( schema_name '.')? table_name '.')? column_name
+	| ( ( schema_name '.')? table_name '.')? (column_name | REF_FIELD)
 	| unary_operator expr
 	| expr '||' expr
 	| expr ( '*' | '/' | '%') expr
@@ -761,5 +761,4 @@ any_name:
 	IDENTIFIER
 	| keyword
 	| STRING_LITERAL
-	| REF_FIELD
 	| '(' any_name ')';

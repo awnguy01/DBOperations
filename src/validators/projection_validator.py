@@ -1,6 +1,6 @@
 from typing import List
 from models.Table import Table
-from utils.db import find_table
+from utils.db import find_table, col_name_found, ref_field_in_bounds
 from validators.antlr4.SQLiteParser import SQLiteParser
 from validators.antlr4.SQLiteParserVisitor import SQLiteParserVisitor
 
@@ -12,15 +12,20 @@ class ProjectionValidator(SQLiteParserVisitor):
             if result_column.STAR():
                 continue
             else:
-                table_name_ctx: SQLiteParser.Table_nameContext = result_column.expr().table_name()
-                if not result_column.expr().column_name():
-                    continue
-                col_name_text = result_column.expr().column_name().getText()
-                if table_name_ctx:
-                    self.check_projection_in_table(
-                        col_name_text, table_name_ctx.getText(), sources)
-                else:
-                    self.check_projection_in_all_tables(col_name_text, sources)
+                expr_ctx = result_column.expr()
+                column_name_ctx = expr_ctx.column_name()
+                REF_FIELD_ctx = expr_ctx.REF_FIELD()
+
+                if column_name_ctx or REF_FIELD_ctx:
+                    table_name_ctx: SQLiteParser.Table_nameContext = expr_ctx.table_name()
+                    projection = column_name_ctx.getText() if column_name_ctx else REF_FIELD_ctx.getText()
+
+                    if table_name_ctx:
+                        self.check_projection_in_table(
+                            projection, table_name_ctx.getText(), sources)
+                    else:
+                        self.check_projection_in_all_tables(
+                            projection, sources)
 
         return super().visitSelect_core(ctx)
 
@@ -40,6 +45,7 @@ class ProjectionValidator(SQLiteParserVisitor):
     def check_projection_in_table(self, projection: str, table_or_alias_raw: str, sources: List[Table]):
         table_or_alias: str = table_or_alias_raw.upper()
         source_match = None
+
         for source in sources:
             if source.name.upper() == table_or_alias:
                 source_match = source
@@ -48,21 +54,27 @@ class ProjectionValidator(SQLiteParserVisitor):
                 if source.alias.upper() == table_or_alias:
                     source_match = source
                     break
+
         if not source_match:
             raise Exception(
-                'Projection "' + projection + '" specified by table or alias "' + table_or_alias + '" not found')
-        elif projection.upper() not in map(lambda header: header.upper(), source.headers):
+                'Table or alias "' + table_or_alias + '" not found for projection or ref field "' + projection + '"')
+        elif projection[1:].isdigit():
+            if not ref_field_in_bounds(projection, source_match):
+                raise Exception('Ref field "' + projection +
+                                '" is out of bounds for "' + table_or_alias + '"')
+        elif not col_name_found(projection, source_match):
+            print(projection)
             raise Exception(
                 'Projection "' + projection + '" not found in table or alias "' + table_or_alias + '"')
 
     def check_projection_in_all_tables(self, projection: str, sources: List[Table]):
         found = False
         for source in sources:
-            if projection.upper() in map(lambda header: header.upper(), source.headers):
+            if projection[1:].isdigit() and ref_field_in_bounds(projection, source) or col_name_found(projection, source):
                 if found:
-                    raise Exception(
-                        'Ambiguous projection "' + projection + '" found in multiple tables')
+                    raise Exception('Ambiguous projection or ref field "' +
+                                    projection + '" found in multiple tables')
                 found = True
         if not found:
-            raise Exception('Projection "' + projection +
+            raise Exception('Projection or ref field "' + projection +
                             '" was not found in any tables')

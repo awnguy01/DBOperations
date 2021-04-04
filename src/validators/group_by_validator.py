@@ -1,6 +1,6 @@
 from typing import List, Set
 from models.Table import Table
-from utils.db import find_table
+from utils.db import find_table, col_name_found, ref_field_in_bounds
 from validators.antlr4.SQLiteParser import SQLiteParser
 from validators.antlr4.SQLiteParserVisitor import SQLiteParserVisitor
 
@@ -14,23 +14,28 @@ class GroupByValidator(SQLiteParserVisitor):
         group_by_columns: List[str] = []
 
         for expr_ctx in ctx.group_by_clause().expr():
-            if expr_ctx.column_name():
-                column_name_text = expr_ctx.column_name().getText()
+            if expr_ctx.column_name() or expr_ctx.REF_FIELD():
+                column_or_ref_field_text = expr_ctx.column_name().getText(
+                ) if expr_ctx.column_name() else expr_ctx.REF_FIELD().getText()
 
                 if expr_ctx.table_name():
                     self.check_column_in_table(
-                        column_name_text, expr_ctx.table_name().getText(), sources)
+                        column_or_ref_field_text, expr_ctx.table_name().getText(), sources)
                 else:
-                    self.check_column_in_all_tables(column_name_text, sources)
+                    self.check_column_in_all_tables(
+                        column_or_ref_field_text, sources)
 
-                group_by_columns.append(column_name_text.upper())
+                group_by_columns.append(column_or_ref_field_text.upper())
 
         for result_column_ctx in ctx.result_column():
-            if result_column_ctx.expr() and result_column_ctx.expr().column_name():
-                column_name_text = result_column_ctx.expr().column_name().getText()
-                if column_name_text.upper() not in group_by_columns:
-                    raise Exception(
-                        'Projection "' + column_name_text + '" not found in GROUP BY clause')
+            expr_ctx = result_column_ctx.expr()
+            if expr_ctx:
+                if expr_ctx.column_name() or expr_ctx.REF_FIELD():
+                    column_or_ref_field_text = expr_ctx.column_name().getText(
+                    ) if expr_ctx.column_name() else expr_ctx.REF_FIELD().getText()
+                    if column_or_ref_field_text.upper() not in group_by_columns:
+                        raise Exception(
+                            'Projection or ref field "' + column_or_ref_field_text + '" not found in GROUP BY clause')
 
     def visitFrom_clause(self, ctx: SQLiteParser.From_clauseContext) -> List[Table]:
         tables: List[Table] = []
@@ -58,19 +63,23 @@ class GroupByValidator(SQLiteParserVisitor):
                     break
         if not source_match:
             raise Exception(
-                'GROUP BY column "' + column + '" specified by table or alias "' + table_or_alias + '" not found')
-        elif column.upper() not in map(lambda header: header.upper(), source.headers):
+                'GROUP BY table or alias "' + table_or_alias + '" not found for column or ref field "' + column + '"')
+        elif column[1:].isdigit():
+            if not ref_field_in_bounds(column, source_match):
+                raise Exception(
+                    'GROUP BY ref field "' + column + '" is out of bounds for table or alias "' + table_or_alias + '"')
+        elif not col_name_found(column, source_match):
             raise Exception(
                 'GROUP BY column "' + column + '" not found in table or alias "' + table_or_alias + '"')
 
     def check_column_in_all_tables(self, column: str, sources: List[Table]):
         found = False
         for source in sources:
-            if column.upper() in map(lambda header: header.upper(), source.headers):
+            if ref_field_in_bounds(column, source) or col_name_found(column, source):
                 if found:
                     raise Exception(
-                        'Ambiguous GROUP BY column "' + column + '" found in multiple tables')
+                        'Ambiguous GROUP BY column or ref field "' + column + '" found in multiple tables')
                 found = True
         if not found:
-            raise Exception('GROUP BY column "' + column +
+            raise Exception('GROUP BY column or ref field "' + column +
                             '" was not found in any tables')

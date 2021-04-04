@@ -22,3 +22,11 @@ def read_table_header(path: str) -> List[str]:
     with open(path) as f:
         return map(lambda c: c.upper(),
                    f.readline().strip().split(sep=','))
+
+
+def ref_field_in_bounds(projection: str, source: Table):
+    return projection[1:].isdigit() and int(projection[1:]) <= len(list(source.headers))
+
+
+def col_name_found(projection: str, source: Table):
+    return projection.upper() in map(lambda header: header.upper(), source.headers)
