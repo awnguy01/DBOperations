@@ -20,8 +20,8 @@ def find_table(search_name: str) -> Table:
 
 def read_table_header(path: str) -> List[str]:
     with open(path) as f:
-        return map(lambda c: c.upper(),
-                   f.readline().strip().split(sep=','))
+        return list(map(lambda c: c.upper(),
+                   f.readline().strip().split(sep=',')))
 
 
 def ref_field_in_bounds(projection: str, source: Table):
