@@ -345,9 +345,10 @@ select_stmt:
 	)* order_by_stmt? limit_stmt?;
 
 join_clause:
-	table_or_subquery (
-		join_operator table_or_subquery join_constraint?
-	)*;
+	table_or_subquery (join_condition)*;
+
+join_condition:
+	join_operator table_or_subquery join_constraint?;
 
 select_core:
 	(
@@ -355,7 +356,7 @@ select_core:
 			',' result_column
 		)* (
 			FROM from_clause
-		)? (WHERE expr)? (group_by_clause)? (
+		)? (where_clause)? (group_by_clause)? (
 			WINDOW window_name AS window_defn (
 				',' window_name AS window_defn
 			)*
@@ -364,6 +365,8 @@ select_core:
 	| VALUES '(' expr (',' expr)* ')' (
 		',' '(' expr ( ',' expr)* ')'
 	)*;
+
+where_clause: WHERE expr;
 
 from_clause: table_or_subquery (',' table_or_subquery)* | join_clause;
 
@@ -406,7 +409,7 @@ result_column:
 
 join_operator:
 	','
-	| (NATURAL? ( (LEFT OUTER?) | INNER | CROSS)? JOIN);
+	| (NATURAL? ( (LEFT OUTER?) | (RIGHT OUTER?) | INNER | CROSS)? JOIN);
 
 join_constraint:
 	(ON expr)
@@ -488,7 +491,7 @@ order_by_stmt: ORDER BY ordering_term ( ',' ordering_term)*;
 limit_stmt: LIMIT expr ( (OFFSET | ',') expr)?;
 
 ordering_term:
-	expr (COLLATE collation_name)? asc_desc? (
+	((table_name | table_alias) '.')?  expr (COLLATE collation_name)? asc_desc? (
 		NULLS (FIRST | LAST)
 	)?;
 asc_desc: ASC | DESC;

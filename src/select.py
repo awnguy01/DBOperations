@@ -64,12 +64,12 @@ def column_offset_validation(arguments):
     attributesCount = len(header.split(splitter))
     operands = arguments[0].split()
     hasheader = arguments[3]
-
+    
     for operand in operands:
         if operand.startswith('#'):
             # if you are here the column offset can be a integer or string
             if operand[1:].isdecimal():
-                if int(operand[1:]) not in range(0, attributesCount):
+                if int(operand[1:]) not in range(1, attributesCount + 1):
                     if attributesCount == 1:
                         raise Exception(f'Did you miss passing delimiter arg?')
                     else:
@@ -216,7 +216,7 @@ def projection_cols(line,projectedcols,splitter):
     :param splitter: user-specified field delimiter
     :return: user interested columns data separated by a separator
     """
-    rowdata = line.split(splitter)
+    rowdata = line.rstrip('\r\n').split(splitter)
     result = splitter.join([rowdata[columnNumber] for columnNumber in projectedcols])
     return result + '\n'
 
