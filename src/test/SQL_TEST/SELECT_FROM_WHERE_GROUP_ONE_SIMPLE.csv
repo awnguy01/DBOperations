@@ -1,103 +1,103 @@
-"Account Coordinator",32,77917.0
-"Account Executive",65,109749.0
-"Accounting Assistant IV",31,90581.0
+Account Coordinator,32,77917.0
+Account Executive,65,109749.0
+Accounting Assistant IV,31,90581.0
 Actuary,55,127552.0
-"Administrative Officer",52,109604.333333333
-"Assistant Manager",62,114354.0
-"Assistant Media Planner",41,69632.0
-"Assistant Professor",41,60890.0
-"Associate Professor",62,101385.5
-"Automation Specialist III",65,147633.0
-"Biostatistician I",62,81821.0
-"Biostatistician IV",63,98132.0
-"Budget/Accounting Analyst I",46,106505.0
-"Chemical Engineer",55,96430.5
-"Chief Design Engineer",59,94081.5
-"Civil Engineer",55,82975.0
-"Clinical Specialist",40,77921.0
-"Community Outreach Specialist",47,94885.3333333333
-"Compensation Analyst",63,99276.0
-"Computer Systems Analyst IV",59,80053.5
-"Cost Accountant",35,110246.0
-"Data Coordiator",62,94894.25
-"Dental Hygienist",54,140247.0
-"Design Engineer",36,55051.0
-"Desktop Support Technician",60,90012.0
-"Developer II",52,129531.0
-"Director of Sales",32,111009.0
+Administrative Officer,52,109604.333333333
+Assistant Manager,62,114354.0
+Assistant Media Planner,41,69632.0
+Assistant Professor,41,60890.0
+Associate Professor,62,101385.5
+Automation Specialist III,65,147633.0
+Biostatistician I,62,81821.0
+Biostatistician IV,63,98132.0
+Budget/Accounting Analyst I,46,106505.0
+Chemical Engineer,55,96430.5
+Chief Design Engineer,59,94081.5
+Civil Engineer,55,82975.0
+Clinical Specialist,40,77921.0
+Community Outreach Specialist,47,94885.3333333333
+Compensation Analyst,63,99276.0
+Computer Systems Analyst IV,59,80053.5
+Cost Accountant,35,110246.0
+Data Coordiator,62,94894.25
+Dental Hygienist,54,140247.0
+Design Engineer,36,55051.0
+Desktop Support Technician,60,90012.0
+Developer II,52,129531.0
+Director of Sales,32,111009.0
 Editor,60,116311.857142857
-"Electrical Engineer",63,108942.666666667
-"Engineer I",40,93090.0
-"Engineer III",57,87260.6666666667
-"Environmental Specialist",59,79033.5
-"Environmental Tech",62,129389.0
-"Executive Secretary",38,83761.0
-"Financial Advisor",60,93916.5
-"Financial Analyst",42,114314.0
-"Food Chemist",33,128664.0
-"GIS Technical Architect",65,106099.857142857
-"General Manager",32,109449.0
-"Geological Engineer",56,95089.0
-"Graphic Designer",34,143899.0
-"Health Coach I",64,105856.0
-"Health Coach IV",64,94085.0
-"Help Desk Operator",46,84395.0
-"Help Desk Technician",52,92262.0
-"Human Resources Assistant III",36,117165.0
-"Human Resources Manager",63,74954.0
-"Information Systems Manager",63,102394.0
-"Internal Auditor",42,107394.0
-"Junior Executive",60,115513.0
+Electrical Engineer,63,108942.666666667
+Engineer I,40,93090.0
+Engineer III,57,87260.6666666667
+Environmental Specialist,59,79033.5
+Environmental Tech,62,129389.0
+Executive Secretary,38,83761.0
+Financial Advisor,60,93916.5
+Financial Analyst,42,114314.0
+Food Chemist,33,128664.0
+GIS Technical Architect,65,106099.857142857
+General Manager,32,109449.0
+Geological Engineer,56,95089.0
+Graphic Designer,34,143899.0
+Health Coach I,64,105856.0
+Health Coach IV,64,94085.0
+Help Desk Operator,46,84395.0
+Help Desk Technician,52,92262.0
+Human Resources Assistant III,36,117165.0
+Human Resources Manager,63,74954.0
+Information Systems Manager,63,102394.0
+Internal Auditor,42,107394.0
+Junior Executive,60,115513.0
 Librarian,50,98018.5
-"Marketing Assistant",65,123243.5
-"Mechanical Systems Engineer",47,82121.0
-"Media Manager II",41,80644.0
-"Nuclear Power Engineer",64,108056.333333333
+Marketing Assistant,65,123243.5
+Mechanical Systems Engineer,47,82121.0
+Media Manager II,41,80644.0
+Nuclear Power Engineer,64,108056.333333333
 Nurse,65,136726.0
-"Occupational Therapist",65,83130.3333333333
-"Office Assistant III",64,136593.0
+Occupational Therapist,65,83130.3333333333
+Office Assistant III,64,136593.0
 Operator,47,81378.0
 Paralegal,47,123318.0
-"Payment Adjustment Coordinator",38,117168.0
+Payment Adjustment Coordinator,38,117168.0
 Pharmacist,60,108335.0
-"Physical Therapy Assistant",59,109992.5
-"Product Engineer",59,117133.25
+Physical Therapy Assistant,59,109992.5
+Product Engineer,59,117133.25
 Professor,57,108174.5
-"Programmer Analyst III",34,94440.0
-"Programmer I",37,111394.0
-"Programmer IV",55,108530.0
-"Project Manager",40,141034.0
-"Quality Control Specialist",46,64111.0
-"Quality Engineer",64,76563.0
+Programmer Analyst III,34,94440.0
+Programmer I,37,111394.0
+Programmer IV,55,108530.0
+Project Manager,40,141034.0
+Quality Control Specialist,46,64111.0
+Quality Engineer,64,76563.0
 Recruiter,65,128161.5
-"Recruiting Manager",54,86694.5
-"Registered Nurse",64,103223.5
-"Research Assistant II",53,83817.0
-"Research Associate",35,58657.0
-"Research Nurse",65,120203.0
-"Safety Technician II",42,144415.0
-"Sales Associate",50,140748.0
-"Sales Representative",64,87629.3333333333
-"Senior Developer",62,91032.0
-"Senior Editor",59,92280.6666666667
-"Senior Financial Analyst",50,136784.0
-"Social Worker",65,102366.5
-"Software Consultant",42,102170.333333333
-"Software Engineer III",36,119929.0
-"Software Engineer IV",47,139086.0
-"Software Test Engineer II",53,73109.0
-"Speech Pathologist",53,135880.5
-"Staff Accountant I",64,133610.0
-"Staff Accountant II",65,94905.5
-"Staff Accountant III",57,91249.0
-"Staff Accountant IV",41,92803.0
-"Staff Scientist",48,117605.0
-"Statistician III",62,62544.0
-"Structural Analysis Engineer",33,107425.0
-"Structural Engineer",53,100622.0
-"Tax Accountant",65,106721.0
-"Technical Writer",54,135910.5
-"VP Product Management",45,116941.5
-"VP Sales",38,103990.0
-"Web Designer III",64,97598.0
-"Web Developer I",35,71218.0
+Recruiting Manager,54,86694.5
+Registered Nurse,64,103223.5
+Research Assistant II,53,83817.0
+Research Associate,35,58657.0
+Research Nurse,65,120203.0
+Safety Technician II,42,144415.0
+Sales Associate,50,140748.0
+Sales Representative,64,87629.3333333333
+Senior Developer,62,91032.0
+Senior Editor,59,92280.6666666667
+Senior Financial Analyst,50,136784.0
+Social Worker,65,102366.5
+Software Consultant,42,102170.333333333
+Software Engineer III,36,119929.0
+Software Engineer IV,47,139086.0
+Software Test Engineer II,53,73109.0
+Speech Pathologist,53,135880.5
+Staff Accountant I,64,133610.0
+Staff Accountant II,65,94905.5
+Staff Accountant III,57,91249.0
+Staff Accountant IV,41,92803.0
+Staff Scientist,48,117605.0
+Statistician III,62,62544.0
+Structural Analysis Engineer,33,107425.0
+Structural Engineer,53,100622.0
+Tax Accountant,65,106721.0
+Technical Writer,54,135910.5
+VP Product Management,45,116941.5
+VP Sales,38,103990.0
+Web Designer III,64,97598.0
+Web Developer I,35,71218.0
