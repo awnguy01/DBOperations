@@ -85,11 +85,11 @@ def apply_logicalop(condition,op1,op2=None):
     :param op2: Optional Boolean
     :return: returns evaluation of op1,op2 as Boolean
     '''
-    if condition == 'and':
+    if condition.upper() == 'AND':
          return op2 if op1 else False
-    elif condition == "or":
+    elif condition.upper() == 'OR':
          return True if op1 else op2
-    elif condition == 'not':
+    elif condition.upper() == 'NOT':
         return not (op1)
     else:
         print("something wrong with the condition you passed")

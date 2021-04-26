@@ -2,6 +2,7 @@ import argparse
 import sys
 import re
 import copy
+from typing import List
 from prettytable import PrettyTable
 from sys import intern
 
@@ -408,39 +409,30 @@ def pretty_print(results, args):
 
 def normal_print(results, args):
     out = args[2]
-    attributes = args[0].split(',')
-    fns = args[5].split(',')
+    aggs = args[5]
 
-    for att in attributes:
-        out.write(f'{att.upper()},')
+    aggfunclists = aggs.split(',')
+    aggattrlist = []
+    aggfunclist = []
 
-    for fn in fns[:-1]:
-        out.write(f'{fn.upper()},')
-    out.write(f'{fns[-1].upper()}\r\n')
+    for func in aggfunclists:
+        aggattrlist.append(re.search(r'\((.*?)\)', func).group(1))
+        aggfunclist.append(func.split('(')[0])
 
-    # agg_keys = list(results.keys())
-    # for k in agg_keys[:-1]:
-    #     out.write(f'{k.upper()},')
-    # out.write(f'{agg_keys[-1]}\r\n')
+    aggfunclists.insert(0, 'GroupBy')
 
-    agg_results = list(results.items())
+    out.write(f'{",".join(aggfunclists)}\n')
 
-    def print_single_result(result):
-        for _, value in enumerate(result):
-            if type(value) is tuple:
-                out.write(f'{value[0]}')
-            elif type(result) is list:
-                out.write(f'{value[-1]}')
-            else:
-                out.write(f'{value}')
-        out.write('\r\n')
-
-    for k, v in agg_results[:-1]:
-        out.write(f'{k.strip()},')
-        print_single_result(v)
-    out.write(f'{agg_results[-1][0].strip()},')
-    print_single_result(agg_results[-1][1])
-
+    for k, v in results.items():
+        row: List[str] = [k]
+        for idx, value in enumerate(v):
+            if aggfunclist[idx] == 'sum' or aggfunclist[idx] == 'count':
+                row.append(str(round(value, 9)))
+            elif aggfunclist[idx] == 'min' or aggfunclist[idx] == 'max':
+                row.append(str(round(value[0], 9)))
+            elif aggfunclist[idx] == 'avg':
+                row.append(str(round(value[2], 9)))
+        out.write(f'{",".join(row)}\n')
 
 def main():
     args = user_interface()
