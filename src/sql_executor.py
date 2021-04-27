@@ -7,7 +7,7 @@ from models.Attribute import Attribute, AttributeType
 from models.Join import Join, JoinType
 from models.Table import Table
 from antlr4.tree.Tree import TerminalNodeImpl
-from UnixSql import UnixAgg, UnixWhere, UnixGroupBy, UnixJoin, UnixOrderBy
+from UnixSql import UnixAgg, UnixSelect, UnixGroupBy, UnixJoin, UnixOrderBy, UnixProject
 import re
 from copy import deepcopy
 from os import path
@@ -30,25 +30,21 @@ class SQLExecutor:
                 command = ''
                 select_stmt_ctx = sql_stmt_ctx.select_stmt()
                 if select_stmt_ctx:
-                    command = compute_sql_pipline(
+                    command = compute_sql_pipeline(
                         select_stmt_ctx, self.schema)
                 commands.append(command)
         return ' & '.join(commands)
 
 
-def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema: Dict[str, Table]) -> str:
+def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema: Dict[str, Table]) -> str:
     commands: List[str] = []
     select_core_ctx = select_stmt_ctx.select_core(0)
     sources = list(schema.values())
     attributes: List[Attribute] = map_table_attributes(
         select_stmt_ctx, sources)
     joins = UnixJoin.extract_joins(select_core_ctx, sources)
-
-    for attribute in [attribute for attribute in attributes if attribute.association == AttributeType.WHERE]:
-        if attribute.name in [join.left_attribute for join in joins] + [join.right_attribute for join in joins]:
-            join_attribute = deepcopy(attribute)
-            join_attribute.association = AttributeType.JOIN
-            attributes.append(join_attribute)
+    defer_select = len(dict.fromkeys(
+        [attribute.source.name for attribute in attributes if attribute.association == AttributeType.WHERE])) > 1
 
     results_headers = []
 
@@ -58,67 +54,36 @@ def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema
         related_attributes = [
             attribute for attribute in attributes if attribute.source.name == source.name]
 
-        # Project all involved attributes
+        projections = []
 
-        initial_projections = sorted((
-            projection
-            for projection
-            in dict.fromkeys([
-                re.sub(
-                    STRIP_FN_AND_TABLE_REGEX, '', attribute.name, flags=re.IGNORECASE)
-                for attribute
-                in related_attributes
-                if attribute.association != AttributeType.WHERE
-            ])), key=(lambda projection: source.headers.index(projection)))
-
-        if any(attr.association == AttributeType.WHERE for attr in related_attributes):
-            condition = UnixWhere.extract_conditions(
+        if not defer_select and any(attr.association == AttributeType.WHERE for attr in related_attributes):
+            projections = UnixProject.find_all_projections_for_source(
+                UnixSelect.filter_select_attributes(attributes), source)
+            condition = UnixSelect.extract_conditions(
                 select_core_ctx.where_clause(), sources, source.name)
-            if condition:
-                commands.append(UnixWhere.compute_select_where_command(
-                    condition, initial_projections, source))
-            else:
-                commands.append(compute_project_command(
-                    initial_projections, source, True))
+            commands.append(UnixSelect.compute_select_command(
+                condition, projections, source, False))
         else:
+            projections = UnixProject.find_all_projections_for_source(attributes, source)
             commands.append(compute_project_command(
-                initial_projections, source, True))
+                projections, source, True))
 
         # Realign order of table headers
-        source.headers = initial_projections
+        source.headers = projections
         if joins:
             commands[-1] += f' > /tmp/term_sql_{source.name}'
 
     attributes = [
-        attribute for attribute in attributes if attribute.association != AttributeType.WHERE]
+        attribute for attribute in attributes if attribute.association != AttributeType.WHERE or defer_select]
 
     if joins:
-        commands += compute_join_commands(joins, sources)
-        join_attributes_abbr = [
-            (attribute.source.name, attribute.name) for attribute in attributes if attribute.association == AttributeType.JOIN]
-        attributes = [
-            attribute for attribute in attributes if attribute.association != AttributeType.JOIN]
-        for attribute in attributes:
-            if attribute.association == AttributeType.AGG:
-                attribute.name = re.sub(
-                    r'\(', f'({attribute.source.name}.', attribute.name)
-            elif (attribute.source.name, attribute.name) in join_attributes_abbr:
-                for join in joins:
-                    if attribute.name in [join.left_attribute, join.right_attribute]:
-                        attribute.name = f'JOIN.{join.left_attribute}.{join.right_attribute}'
-            else:
-                attribute.name = f'{attribute.source.name}.{attribute.name}'
+        commands += UnixJoin.compute_join_commands(joins, sources)
+        attributes = UnixJoin.filter_join_attributes(attributes)
+        attributes = UnixJoin.relabel_post_join_attributes(attributes, joins, sources[0])
 
-        projections = sorted((
-            projection
-            for projection
-            in dict.fromkeys([
-                re.sub(
-                    STRIP_FN_REGEX, '', attribute.name, flags=re.IGNORECASE)
-                for attribute
-                in attributes
-            ])), key=(lambda projection: sources[0].headers.index(projection)))
+        projections = UnixProject.find_all_projections_for_source(attributes, sources[0])
         commands[-1] += f' | {compute_project_command(projections, sources[0], False)}'
+        sources = [sources[0]]
         sources[0].headers = projections
 
     results_headers = sources[0].headers
@@ -137,6 +102,20 @@ def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema
             commands[-1] += f' | {UnixAgg.compute_agg_command(aggregates, results_headers)}'
 
         results_headers = groups + aggregates
+
+    if defer_select:
+        attributes = UnixSelect.filter_select_attributes(attributes)
+        projections = UnixProject.find_all_projections_for_source(
+                attributes, sources[0])
+        condition = UnixSelect.extract_conditions(
+            select_core_ctx.where_clause(), sources, sources[0].name)
+        stdin_select = len(joins) <= 1
+        select_command = UnixSelect.compute_select_command(condition, projections, sources[0], stdin_select)
+        if stdin_select:
+            commands[-1] += f' | {select_command}'
+        else:
+            commands.append(select_command)
+
 
     sorts = [
         # f'{attribute.source.name}.{attribute.name}'
@@ -174,79 +153,6 @@ def compute_project_command(selects: List[str], source: Table, initial: bool) ->
         pipes.append('tail -n+2')
 
     return ' | '.join(pipes)
-
-
-def compute_join_commands(joins: List[Join], sources: List[Table]):
-    commands = []
-    joined_sources: List[str] = []
-    left_headers: List[str] = []
-    left_f_name = None
-    join_counter = len(joins)
-
-    while join_counter:
-        for i in range(join_counter):
-            join = joins[i]
-            if not joined_sources or join.left in joined_sources:
-                left_source = None
-                right_source = None
-
-                for source in sources:
-
-                    if left_source and right_source:
-                        break
-                    if source.name == join.left:
-                        left_source = source
-                    if source.name == join.right:
-                        right_source = source
-                left_f_name = left_f_name if left_f_name else f'/tmp/term_sql_{left_source.name}'
-                right_f_name = f'/tmp/term_sql_{right_source.name}'
-                left_headers = left_headers if left_headers else [
-                    f'{left_source.name}.{header}' for header in left_source.headers]
-                right_headers = [
-                    f'{right_source.name}.{header}' for header in right_source.headers]
-
-                left_attribute = f'{left_source.name}.{join.left_attribute}'
-                right_attribute = f'{right_source.name}.{join.right_attribute}'
-
-                commands.append(
-                    f'{UnixOrderBy.compute_order_by_command([left_attribute], left_headers)} -o {left_f_name} {left_f_name}')
-                commands.append(
-                    f'{UnixOrderBy.compute_order_by_command([right_attribute], right_headers)} -o {right_f_name} {right_f_name}')
-                join_args = ['join -t ","']
-
-                if join.join_type == JoinType.LEFT:
-                    join_args.append('-a1')
-                elif join.join_type == JoinType.RIGHT:
-                    join_args.append('-a2')
-
-                join_args.append(
-                    f'-1{left_headers.index(left_attribute) + 1}')
-                join_args.append(
-                    f'-2{right_headers.index(right_attribute) + 1}')
-                join_args.append(f'{left_f_name}')
-                join_args.append(f'{right_f_name}')
-                left_f_name += f'_{right_source.name}'
-                if len(joins) > 1:
-                    join_args.append(f'> {left_f_name}')
-                commands.append(' '.join(join_args))
-                left_headers += right_headers
-                left_headers.pop(left_headers.index(left_attribute))
-                left_headers.pop(left_headers.index(right_attribute))
-                join_header = 'JOIN.' + \
-                    re.sub(r'.*\.', '', left_attribute) + '.' + \
-                    re.sub(r'.*\.', '', right_attribute)
-                # join_header = f'{left_headers.pop(left_headers.index(left_attribute))}|{left_headers.pop(left_headers.index(right_attribute))}'
-                left_headers.insert(0, join_header)
-                join_counter -= 1
-
-    sources.insert(0, Table(
-        full_path=left_f_name,
-        name='FINAL_JOIN',
-        delimiter=',',
-        headers=left_headers
-    ))
-
-    return commands
 
 
 def compute_limit_command(limit: int, offset: int) -> str:
@@ -307,6 +213,11 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
                 attributes.append(
                     Attribute(col_name, alias, source, attribute_type))
             else:
+                if attribute_type == AttributeType.WHERE and inner_expr_ctx.EQ():
+                    if all(expr.column_name() for expr in inner_expr_ctx.expr()):
+                        recursive_attribute_append(
+                            inner_expr_ctx, AttributeType.JOIN)
+                        continue
                 recursive_attribute_append(inner_expr_ctx, attribute_type)
 
     if join_clause_ctx:

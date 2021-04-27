@@ -1,8 +1,85 @@
+from copy import deepcopy
+import re
 from typing import List
 from validators.antlr4.SQLiteParser import SQLiteParser
 from models.Join import Join, JoinType
 from utils.db import find_target_source
+from models.Attribute import Attribute, AttributeType
 from models.Table import Table
+from UnixSql import UnixOrderBy
+
+
+def compute_join_commands(joins: List[Join], sources: List[Table]):
+    commands = []
+    joined_sources: List[str] = []
+    left_headers: List[str] = []
+    left_f_name = None
+    join_counter = len(joins)
+
+    while join_counter:
+        for i in range(join_counter):
+            join = joins[i]
+            if not joined_sources or join.left in joined_sources:
+                left_source = None
+                right_source = None
+
+                for source in sources:
+
+                    if left_source and right_source:
+                        break
+                    if source.name == join.left:
+                        left_source = source
+                    if source.name == join.right:
+                        right_source = source
+                left_f_name = left_f_name if left_f_name else f'/tmp/term_sql_{left_source.name}'
+                right_f_name = f'/tmp/term_sql_{right_source.name}'
+                left_headers = left_headers if left_headers else [
+                    f'{left_source.name}.{header}' for header in left_source.headers]
+                right_headers = [
+                    f'{right_source.name}.{header}' for header in right_source.headers]
+
+                left_attribute = f'{left_source.name}.{join.left_attribute}'
+                right_attribute = f'{right_source.name}.{join.right_attribute}'
+
+                commands.append(
+                    f'{UnixOrderBy.compute_order_by_command([left_attribute], left_headers)} -o {left_f_name} {left_f_name}')
+                commands.append(
+                    f'{UnixOrderBy.compute_order_by_command([right_attribute], right_headers)} -o {right_f_name} {right_f_name}')
+                join_args = ['join -t ","']
+
+                if join.join_type == JoinType.LEFT:
+                    join_args.append('-a1')
+                elif join.join_type == JoinType.RIGHT:
+                    join_args.append('-a2')
+
+                join_args.append(
+                    f'-1{left_headers.index(left_attribute) + 1}')
+                join_args.append(
+                    f'-2{right_headers.index(right_attribute) + 1}')
+                join_args.append(f'{left_f_name}')
+                join_args.append(f'{right_f_name}')
+                left_f_name += f'_{right_source.name}'
+                if len(joins) > 1:
+                    join_args.append(f'> {left_f_name}')
+                commands.append(' '.join(join_args))
+                left_headers += right_headers
+                left_headers.pop(left_headers.index(left_attribute))
+                left_headers.pop(left_headers.index(right_attribute))
+                join_header = 'JOIN.' + \
+                    re.sub(r'.*\.', '', left_attribute) + '.' + \
+                    re.sub(r'.*\.', '', right_attribute)
+                # join_header = f'{left_headers.pop(left_headers.index(left_attribute))}|{left_headers.pop(left_headers.index(right_attribute))}'
+                left_headers.insert(0, join_header)
+                join_counter -= 1
+
+    sources.insert(0, Table(
+        full_path=left_f_name,
+        name='JOIN',
+        delimiter=',',
+        headers=left_headers
+    ))
+
+    return commands
 
 def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) -> List[Join]:
     joins: List[Join] = []
@@ -78,3 +155,25 @@ def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) ->
                         uncertains.pop(u)
                         break
     return joins
+
+def relabel_post_join_attributes(attributes: List[Attribute], joins: List[Join], join_source: Table) -> List[Attribute]:
+    join_attributes_abbr = [
+            (attribute.source.name, attribute.name) for attribute in attributes if attribute.association == AttributeType.JOIN]
+    tmp_attributes = [deepcopy(attribute) for attribute in attributes]
+    for attribute in tmp_attributes:
+        if attribute.association == AttributeType.AGG:
+            attribute.name = re.sub(
+                r'\(', f'({attribute.source.name}.', attribute.name)
+        elif (attribute.source.name, attribute.name) in join_attributes_abbr:
+            for join in joins:
+                if attribute.name in [join.left_attribute, join.right_attribute]:
+                    attribute.name = f'JOIN.{join.left_attribute}.{join.right_attribute}'
+        else:
+            attribute.name = f'{attribute.source.name}.{attribute.name}'
+            
+        attribute.source = join_source
+        
+    return tmp_attributes
+
+def filter_join_attributes(attributes: List[Attribute]) -> List[Attribute]:
+    return [attribute for attribute in attributes if attribute.association != AttributeType.JOIN]

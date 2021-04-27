@@ -64,7 +64,7 @@ def find_target_source(table_ref_ctx, sources: List[Table]) -> Table:
         return find_table_by_alias(table_ref_ctx.table_alias().getText(), sources)
     elif hasattr(table_ref_ctx, 'column_name') and table_ref_ctx.column_name():
         return next((source for source in sources if table_ref_ctx.column_name().getText().upper() in source.headers), None)
-    elif hasattr(table_ref_ctx, 'function_name'):
+    elif hasattr(table_ref_ctx, 'function_name') and table_ref_ctx.function_name():
         fn_expr_ctx = table_ref_ctx.expr(0)
         if fn_expr_ctx.table_name():
             source = find_table_by_name(fn_expr_ctx.table_name().getText(), sources) 
