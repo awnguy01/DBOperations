@@ -1,6 +1,7 @@
 
 from os import path
 import re
+from src.utils.db import find_target_source
 from typing import List
 from models.Table import Table
 from utils.db import in_order_traversal
@@ -32,32 +33,38 @@ def compute_select_where_command(condition: str, projections: List[str], source:
 
     return ' '.join(args)
 
-def extract_conditions(ctx: SQLiteParser.Where_clauseContext) -> str:
-    def check_for_join(expr_ctx: SQLiteParser.ExprContext):
-        if expr_ctx.EQ():
-            if len(in_order_traversal(expr_ctx, SQLiteParser.Column_nameContext)) > 1:
-                return True
+def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Table], target_source_name: str) -> str:
+    def invalid_source_reference(expr_ctx: SQLiteParser.ExprContext):
+        op_expr_ctx_list = in_order_traversal(expr_ctx, SQLiteParser.ExprContext)
+        for op_expr_ctx in op_expr_ctx_list:
+            if op_expr_ctx.column_name():
+                if target_source_name != find_target_source(op_expr_ctx, sources).name:
+                    return True
+            
         return False
     
-    def in_order_no_joins_traversal(nodes: List[TerminalNodeImpl], inner_ctx):
+    def in_order_source_filtered_traversal(nodes: List[TerminalNodeImpl], inner_ctx):
         for i in range(inner_ctx.getChildCount()):
             child = inner_ctx.getChild(i)
             if (type(child) is TerminalNodeImpl):
-                nodes.append(child)
-            elif hasattr(inner_ctx, 'AND') and inner_ctx.AND():
-                left = inner_ctx.expr(0)
-                right = inner_ctx.expr(1)
-                if check_for_join(left):
-                    in_order_no_joins_traversal(nodes, right)
-                elif check_for_join(right):
-                    in_order_no_joins_traversal(nodes, left)
+                if child.getText().upper() not in ['.', target_source_name]:
+                    nodes.append(child)
+            elif hasattr(child, 'AND') and child.AND() or hasattr(child, 'OR') and child.OR():
+                left_invalid_ref = invalid_source_reference(child.expr(0))
+                right_invalid_ref = invalid_source_reference(child.expr(1))
+
+                if left_invalid_ref or right_invalid_ref:
+                    if not left_invalid_ref:
+                        in_order_source_filtered_traversal(nodes, child.expr(0))
+                    if not right_invalid_ref:
+                        in_order_source_filtered_traversal(nodes, child.expr(1))    
                 else:
-                    in_order_no_joins_traversal(nodes, child)    
+                    in_order_source_filtered_traversal(nodes, child)    
             else:
-                in_order_no_joins_traversal(nodes, child)
+                in_order_source_filtered_traversal(nodes, child)
                 
     tokens: List = []
-    in_order_no_joins_traversal(tokens, ctx)
+    in_order_source_filtered_traversal(tokens, ctx)
 
     return ' '.join([token.getText()
                      for token

@@ -42,9 +42,9 @@ def change_test_dir(request):
     ('SELECT_FROM_WHERE_ONE_COMPLEX.csv',
      'SELECT last_name, first_name, title FROM EMPLOYEES WHERE (age < 25 AND salary > 75000 )OR (age < 30 AND salary > 85000)',
      1),
-    # ('SELECT_FROM_WHERE_TWO.csv',
-    #  'SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM DEPARTMENTS, EMPLOYEES WHERE E.d_id == D.id AND D.state == 'CA' AND E.age > 50',
-    #  2)
+    ('SELECT_FROM_WHERE_TWO.csv',
+     'SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM DEPARTMENTS, EMPLOYEES WHERE EMPLOYEES.d_id == DEPARTMENTS.id AND DEPARTMENTS.state == "CA" AND EMPLOYEES.age > 50',
+     2),
     # ('SELECT_FROM_WHERE_TWO_JOIN.csv',
     #  "SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM DEPARTMENTS LEFT JOIN EMPLOYEES ON EMPLOYEES.d_id == DEPARTMENTS.id WHERE DEPARTMENTS.state == 'CA' AND EMPLOYEES.age > 50",
     #  2

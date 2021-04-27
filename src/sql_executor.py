@@ -18,6 +18,8 @@ AGG_PATH = path.join(path.dirname(__file__), 'agg.py')
 
 STRIP_FN_AND_TABLE_REGEX = r'\b(SUM|COUNT|AVG|MIN|MAX)\((.*\.)?|\)'
 STRIP_FN_REGEX = r'\b(SUM|COUNT|AVG|MIN|MAX)\(|\)'
+
+
 class SQLExecutor:
     def execute_sql(self, sql: str, schema: Dict[str, Table]):
         self.schema = deepcopy(schema)
@@ -48,14 +50,14 @@ def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema
             join_attribute.association = AttributeType.JOIN
             attributes.append(join_attribute)
 
-    # for attribute in attributes:
-    #     print(f'{attribute.name} | {attribute.source.name} | {attribute.association}')
-
     results_headers = []
 
     commands.append(compute_header_command(attributes))
 
     for source in sources:
+        related_attributes = [
+            attribute for attribute in attributes if attribute.source.name == source.name]
+
         # Project all involved attributes
 
         initial_projections = sorted((
@@ -65,15 +67,19 @@ def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema
                 re.sub(
                     STRIP_FN_AND_TABLE_REGEX, '', attribute.name, flags=re.IGNORECASE)
                 for attribute
-                in attributes
-                if attribute.source.name == source.name and attribute.association != AttributeType.WHERE
+                in related_attributes
+                if attribute.association != AttributeType.WHERE
             ])), key=(lambda projection: source.headers.index(projection)))
 
-        if any(attr.association == AttributeType.WHERE for attr in attributes):
+        if any(attr.association == AttributeType.WHERE for attr in related_attributes):
             condition = UnixWhere.extract_conditions(
-                select_core_ctx.where_clause())
-            commands.append(UnixWhere.compute_select_where_command(
-                condition, initial_projections, source))
+                select_core_ctx.where_clause(), sources, source.name)
+            if condition:
+                commands.append(UnixWhere.compute_select_where_command(
+                    condition, initial_projections, source))
+            else:
+                commands.append(compute_project_command(
+                    initial_projections, source, True))
         else:
             commands.append(compute_project_command(
                 initial_projections, source, True))
@@ -88,25 +94,21 @@ def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema
 
     if joins:
         commands += compute_join_commands(joins, sources)
-        join_attribute_names = [
-            attribute.name for attribute in attributes if attribute.association == AttributeType.JOIN]
+        join_attributes_abbr = [
+            (attribute.source.name, attribute.name) for attribute in attributes if attribute.association == AttributeType.JOIN]
         attributes = [
             attribute for attribute in attributes if attribute.association != AttributeType.JOIN]
         for attribute in attributes:
             if attribute.association == AttributeType.AGG:
                 attribute.name = re.sub(
                     r'\(', f'({attribute.source.name}.', attribute.name)
-            elif attribute.name in join_attribute_names:
+            elif (attribute.source.name, attribute.name) in join_attributes_abbr:
                 for join in joins:
-                    print('TEST')
-                    print(str([join.left_attribute, join.right_attribute]))
                     if attribute.name in [join.left_attribute, join.right_attribute]:
                         attribute.name = f'JOIN.{join.left_attribute}.{join.right_attribute}'
             else:
                 attribute.name = f'{attribute.source.name}.{attribute.name}'
 
-        # print(f'POST JOIN ATTRIBUTES : {str([attribute.name for attribute in attributes])}')
-        # print(f'POST JOIN HEADERS : {str(sources[0].headers)}')
         projections = sorted((
             projection
             for projection
@@ -137,7 +139,8 @@ def compute_sql_pipline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schema
         results_headers = groups + aggregates
 
     sorts = [
-        f'{attribute.source.name}.{attribute.name}'
+        # f'{attribute.source.name}.{attribute.name}'
+        attribute.name
         for attribute
         in attributes
         if attribute.association == AttributeType.ORDER_BY
