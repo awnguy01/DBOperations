@@ -1,4 +1,4 @@
-from utils.db import find_table_by_name, in_order_traversal
+from utils.db import find_table_by_name, in_order_traversal, convert_attribute_name_to_ref_field
 from typing import Dict, List, Tuple
 from validators.antlr4.SQLiteParser import SQLiteParser
 from utils.valid import parse_context
@@ -40,6 +40,9 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     commands: List[str] = []
     select_core_ctx = select_stmt_ctx.select_core(0)
     sources = list(schema.values())
+    # for source in sources:
+    #     source.headers = [(header, f'#{i + 1}')
+    #                       for i, header in enumerate(source.headers)]
     attributes: List[Attribute] = map_table_attributes(
         select_stmt_ctx, sources)
     joins = UnixJoin.extract_joins(select_core_ctx, sources)
@@ -64,12 +67,14 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
             commands.append(UnixSelect.compute_select_command(
                 condition, projections, source, False))
         else:
-            projections = UnixProject.find_all_projections_for_source(attributes, source)
-            commands.append(compute_project_command(
+            projections = UnixProject.find_all_projections_for_source(
+                attributes, source)
+            commands.append(UnixProject.compute_project_command(
                 projections, source, True))
 
         # Realign order of table headers
-        source.headers = projections
+        source.headers = [source.headers[idx] for idx in [
+            int(projection[1:]) - 1 if projection[0] == '#' else source.headers.index(projection) for projection in projections]]
         if joins:
             commands[-1] += f' > /tmp/term_sql_{source.name}'
 
@@ -79,10 +84,12 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     if joins:
         commands += UnixJoin.compute_join_commands(joins, sources)
         attributes = UnixJoin.filter_join_attributes(attributes)
-        attributes = UnixJoin.relabel_post_join_attributes(attributes, joins, sources[0])
+        attributes = UnixJoin.relabel_post_join_attributes(
+            attributes, joins, sources[0])
 
-        projections = UnixProject.find_all_projections_for_source(attributes, sources[0])
-        commands[-1] += f' | {compute_project_command(projections, sources[0], False)}'
+        projections = UnixProject.find_all_projections_for_source(
+            attributes, sources[0])
+        commands[-1] += f' | {UnixProject.compute_project_command(projections, sources[0], False)}'
         sources = [sources[0]]
         sources[0].headers = projections
 
@@ -106,19 +113,18 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     if defer_select:
         attributes = UnixSelect.filter_select_attributes(attributes)
         projections = UnixProject.find_all_projections_for_source(
-                attributes, sources[0])
+            attributes, sources[0])
         condition = UnixSelect.extract_conditions(
             select_core_ctx.where_clause(), sources, sources[0].name)
         stdin_select = len(joins) <= 1
-        select_command = UnixSelect.compute_select_command(condition, projections, sources[0], stdin_select)
+        select_command = UnixSelect.compute_select_command(
+            condition, projections, sources[0], stdin_select)
         if stdin_select:
             commands[-1] += f' | {select_command}'
         else:
             commands.append(select_command)
 
-
     sorts = [
-        # f'{attribute.source.name}.{attribute.name}'
         attribute.name
         for attribute
         in attributes
@@ -133,28 +139,6 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     return ' ; '.join(commands)
 
 
-def compute_project_command(selects: List[str], source: Table, initial: bool) -> str:
-    pipes: List[str] = []
-
-    if set(source.headers).issubset(selects):
-        pipes.append('cat ' + f'"{source.full_path}"' if initial else '')
-    else:
-        cut_args = ['cut']
-        projections = ','.join(selects)
-        for i, header in enumerate(source.headers):
-            projections = re.sub(fr'\b{header}\b', str(
-                i + 1), projections, flags=re.IGNORECASE)
-        if initial:
-            cut_args.append(f'"{source.full_path}"')
-        cut_args.append(f'-d "{source.delimiter}" -f "{projections}"')
-        pipes.append(' '.join(cut_args))
-
-    if initial and type(source.headers[0]) is str:
-        pipes.append('tail -n+2')
-
-    return ' | '.join(pipes)
-
-
 def compute_limit_command(limit: int, offset: int) -> str:
     pipe: List[str] = []
     range_max = limit + offset
@@ -166,7 +150,7 @@ def compute_limit_command(limit: int, offset: int) -> str:
 
 def compute_header_command(attributes: List[Attribute]) -> str:
     return 'echo "' + ','.join([
-        attribute.name for attribute in attributes
+        attribute.alias if attribute.alias else attribute.name for attribute in attributes
         if attribute.association in [AttributeType.SELECT, AttributeType.AGG]]) + '"'
 
 
@@ -197,6 +181,9 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
         elif result_column_ctx.expr().column_name():
             attributes.append(Attribute(result_column_ctx.expr().column_name().getText().upper(), alias,
                                         table, AttributeType.SELECT))
+        elif result_column_ctx.expr().REF_FIELD():
+            attributes.append(Attribute(result_column_ctx.expr(
+            ).REF_FIELD().getText(), alias, table, AttributeType.SELECT))
         else:
             agg_attr = re.sub(
                 r'\(.*\.', '(', result_column_ctx.expr().getText().upper())
@@ -205,10 +192,11 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
 
     def recursive_attribute_append(ctx, attribute_type):
         for inner_expr_ctx in in_order_traversal(ctx, SQLiteParser.ExprContext):
-            if inner_expr_ctx.column_name():
-                alias = inner_expr_ctx.column_name().getText().upper()
-                col_name = next((attr.name for attr in attributes if attr.alias ==
-                                 alias), alias)
+            if inner_expr_ctx.column_name() or inner_expr_ctx.REF_FIELD():
+                col_name = inner_expr_ctx.column_name().getText().upper(
+                ) if inner_expr_ctx.column_name() else inner_expr_ctx.REF_FIELD().getText()
+                alias = next((attr.alias for attr in attributes if attr.name ==
+                              col_name), col_name)
                 source = find_target_source(inner_expr_ctx, sources)
                 attributes.append(
                     Attribute(col_name, alias, source, attribute_type))

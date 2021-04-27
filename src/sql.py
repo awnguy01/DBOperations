@@ -29,25 +29,6 @@ class SQL():
         self.proj_checker.validate_projections(ctx, self.schema)
         self.group_by_checker.validate_group_by(ctx, self.schema)
 
-    # def update_schema(self, input: str):
-    #     ctx = parse_context(input)
-    #     self.visit(ctx)
-
-    # def visitFrom_clause(self, ctx: SQLiteParser.From_clauseContext):
-    #     tables: List[Table] = []
-
-    #     for table_or_subquery_ctx in ctx.table_or_subquery():
-    #         table_name = table_or_subquery_ctx.table_name().getText()
-    #         if table_name.upper() not in self.schema.keys():
-    #             table = find_table_in_directory(table_name)
-    #             self.set_table_headers(table)
-    #             self.schema[table.name] = table
-    #             if table_or_subquery_ctx.table_alias():
-    #                 table.alias = table_or_subquery_ctx.table_alias().getText()
-    #             tables.append(table)
-
-    #     return tables
-
     def main(self):
         executor = SQLExecutor()
         while 1:

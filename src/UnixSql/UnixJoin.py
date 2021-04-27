@@ -65,9 +65,10 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                 left_headers += right_headers
                 left_headers.pop(left_headers.index(left_attribute))
                 left_headers.pop(left_headers.index(right_attribute))
-                join_header = 'JOIN.' + \
-                    re.sub(r'.*\.', '', left_attribute) + '.' + \
-                    re.sub(r'.*\.', '', right_attribute)
+                
+                join_header = f'({left_source.name}.' + \
+                    re.sub(r'.*\.', '', left_attribute) + ',' + f'{right_source.name}.' + \
+                    re.sub(r'.*\.', '', right_attribute) + ')'
                 # join_header = f'{left_headers.pop(left_headers.index(left_attribute))}|{left_headers.pop(left_headers.index(right_attribute))}'
                 left_headers.insert(0, join_header)
                 join_counter -= 1
@@ -80,6 +81,7 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
     ))
 
     return commands
+
 
 def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) -> List[Join]:
     joins: List[Join] = []
@@ -142,7 +144,7 @@ def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) ->
             if source_0 and source_1:
                 attribute_0 = eq_condition[0].column_name().getText().upper()
                 attribute_1 = eq_condition[1].column_name().getText().upper()
-                
+
                 for u, join in enumerate(uncertains):
                     if source_0.name == join.left and source_1.name == join.right:
                         join.left_attribute = attribute_0
@@ -156,9 +158,30 @@ def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) ->
                         break
     return joins
 
+
 def relabel_post_join_attributes(attributes: List[Attribute], joins: List[Join], join_source: Table) -> List[Attribute]:
+
+    # joined_sources = ([join.left for join in joins] +
+    #                   [join.right for join in joins])
+
+    # tmp_attributes = [deepcopy(attribute) for attribute in attributes]
+    # for attribute in tmp_attributes:
+    #     if attribute.name[0] != '#':
+    #         attribute.name =
+
+    # for i, header in enumerate(join_source.headers):
+    #     if 'JOIN' == header[0:4]:
+    #         for attribute in attributes:
+
+    join_order: List[str] = list(dict.fromkeys([header for header in [re.sub(
+        r'\bJOIN.*|\..*', '', header) for header in join_source.headers] if header]))
+
+    for source_name in join_order:
+        related_attributes = [
+            attribute for attribute in attributes if attribute.source.name == source_name]
+
     join_attributes_abbr = [
-            (attribute.source.name, attribute.name) for attribute in attributes if attribute.association == AttributeType.JOIN]
+        (attribute.source.name, attribute.name) for attribute in attributes if attribute.association == AttributeType.JOIN]
     tmp_attributes = [deepcopy(attribute) for attribute in attributes]
     for attribute in tmp_attributes:
         if attribute.association == AttributeType.AGG:
@@ -170,10 +193,18 @@ def relabel_post_join_attributes(attributes: List[Attribute], joins: List[Join],
                     attribute.name = f'JOIN.{join.left_attribute}.{join.right_attribute}'
         else:
             attribute.name = f'{attribute.source.name}.{attribute.name}'
-            
+
         attribute.source = join_source
-        
+
+    # tmp_headers = [header for header in join_source.headers]
+    # for source in joined_sources:
+    #     for i, source_header in enumerate(source.headers):
+    #         tmp_headers = [re.sub(rf'({source.name}\.){source_header}',
+    #                               f'\1#{i + 1}', header) for header in tmp_headers]
+
+    # print(tmp)
     return tmp_attributes
+
 
 def filter_join_attributes(attributes: List[Attribute]) -> List[Attribute]:
     return [attribute for attribute in attributes if attribute.association != AttributeType.JOIN]

@@ -68,14 +68,6 @@ def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Tabl
                 in_order_source_filtered_traversal(nodes, left)
                 return
 
-            # if right_invalid_ref or left_invalid_ref:
-            #     if right_invalid_ref:
-            #         in_order_source_filtered_traversal(
-            #             nodes, left)
-            #     elif left_invalid_ref:
-            #         in_order_source_filtered_traversal(
-            #             nodes, right)
-            #     return
         elif hasattr(inner_ctx, 'expr'):
             if hasattr(inner_ctx.expr(), '__len__') and len(inner_ctx.expr()) == 2:
                 if invalid_source_reference(inner_ctx):
@@ -95,7 +87,6 @@ def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Tabl
                           for token
                           in tokens
                           if token.getText() != 'WHERE']).strip()
-
     return re.sub(r'\b(\w+)\s\.\s(\w+)\b', r'\1.\2', condition)
 
 

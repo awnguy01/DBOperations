@@ -1,10 +1,12 @@
 import os
 import glob
+import re
 from typing import Dict, List
 from antlr4.tree.Tree import TerminalNodeImpl
-
+from models.Attribute import Attribute
 from models.Table import Table
 
+STRIP_FN_REGEX = r'\b(SUM|COUNT|AVG|MIN|MAX)\(|\)'
 
 def find_table_in_directory(search_name: str) -> Table:
     cmp_name = search_name.upper()
@@ -81,3 +83,9 @@ def find_target_source(table_ref_ctx, sources: List[Table]) -> Table:
     #     if column_name_ctx:
     #         return next((source for source in sources if column_name_ctx.getText().upper() in source.headers), None)
     return None
+
+def convert_attribute_name_to_ref_field(attribute: Attribute):
+    raw_name = re.sub(STRIP_FN_REGEX, '', attribute.name)
+    if raw_name[0] != '#':
+        attribute.name = f'#{attribute.source.headers.index(raw_name) + 1}'
+    return attribute

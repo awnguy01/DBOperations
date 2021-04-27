@@ -16,47 +16,76 @@ def change_test_dir(request):
     os.chdir(request.config.invocation_dir)
 
 
-# @pytest.fixture
-# def sql_out(monkeypatch):
-#     def _method(stmt: str, confirms: int):
-#         confirm_seq = ''.join(['1\nY\nY' for _ in range(confirms)])
-#         monkeypatch.setattr('sys.stdin', StringIO(confirm_seq))
-#         stmt = 'SELECT last_name, first_name, title, salary FROM EMPLOYEES'
-#         sql = SQL()
-#         sql.validate_sql(stmt)
-#         command = SQLExecutor().execute_sql(stmt, sql.schema)
-#         return check_output(command, shell=True, universal_newlines=True)
-#     return _method
+# Single table projection with named columns
+PROJECT_NAMED_FROM_ONE = ("PROJECT_FROM_ONE.csv",
+                          "SELECT last_name, first_name, title, salary FROM EMPLOYEES",
+                          1)
+# Single table projection with reference fields
+PROJECT_REF_FROM_ONE = ("PROJECT_FROM_ONE.csv",
+                        "SELECT #2 LAST_NAME, #3 FIRST_NAME, #5 TITLE, #7 SALARY FROM EMPLOYEES",
+                        1)
+# Two table projection with named columns
+PROJECT_NAMED_FROM_TWO = ("PROJECT_FROM_TWO.csv",
+                          "SELECT EMPLOYEES.id, title, salary, name, city, state FROM EMPLOYEES JOIN DEPARTMENTS ON d_id == DEPARTMENTS.id",
+                          2)
+# Two table projection with reference fields
+PROJECT_REF_FROM_TWO = ("PROJECT_FROM_TWO.csv",
+                        "SELECT EMPLOYEES.#1 ID, EMPLOYEES.#5 TITLE, EMPLOYEES.#7 SALARY, DEPARTMENTS.#2 NAME, DEPARTMENTS.#3 CITY, DEPARTMENTS.#4 STATE FROM EMPLOYEES JOIN DEPARTMENTS ON d_id == DEPARTMENTS.id",
+                        2)
+# Single table simple selection with named columns
+SIMPLE_SELECT_NAMED_FROM_ONE = ("SELECT_FROM_WHERE_ONE_SIMPLE.csv",
+                                "SELECT last_name, first_name, title, salary FROM EMPLOYEES WHERE SALARY > 85000",
+                                1)
+# Single table complex selection with reference fields
+SIMPLE_SELECT_REF_FROM_ONE = ("SELECT_FROM_WHERE_ONE_SIMPLE.csv",
+                              "SELECT #2 LAST_NAME, #3 FIRST_NAME, #5 TITLE, #7 SALARY FROM EMPLOYEES WHERE #7 > 85000",
+                              1)
+# Single table complex selection with named columns
+COMPLEX_SELECT_NAMED_FROM_ONE = ("SELECT_FROM_WHERE_ONE_COMPLEX.csv",
+                                 "SELECT last_name, first_name, title FROM EMPLOYEES WHERE (age < 25 AND salary > 75000 ) OR (age < 30 AND salary > 85000)",
+                                 1)
+# Single table complex selection with reference fields
+COMPLEX_SELECT_REF_FROM_ONE = ("SELECT_FROM_WHERE_ONE_COMPLEX.csv",
+                               "SELECT #2 LAST_NAME, #3 FIRST_NAME, #5 TITLE FROM EMPLOYEES WHERE (#6 < 25 AND #7 > 75000 ) OR (age < 30 AND salary > 85000)",
+                               1)
+# Two table complex selection with named columns
+COMPLEX_SELECT_NAMED_FROM_TWO = ("SELECT_FROM_WHERE_TWO.csv",
+                                 "SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM EMPLOYEES, DEPARTMENTS WHERE EMPLOYEES.d_id == DEPARTMENTS.id AND DEPARTMENTS.state == 'CA' AND EMPLOYEES.age > 50",
+                                 2)
+# Two table complex selection with reference fields
+COMPLEX_SELECT_REF_FROM_TWO = ()
+# Two table join with complex selection by named columns
+SELECT_NAMED_FROM_TWO_JOINED = ("SELECT_FROM_WHERE_TWO_JOIN.csv",
+                                "SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM EMPLOYEES RIGHT JOIN DEPARTMENTS ON EMPLOYEES.d_id == DEPARTMENTS.id WHERE DEPARTMENTS.state == 'CA' AND EMPLOYEES.age > 50",
+                                2)
+# Two table join with selection by reference fields
+SELECT_REF_FROM_TWO_JOINED = ()
+# Single table selection with group by named columns
+SELECT_NAMED_FROM_ONE_GROUP_BY_NAMED = ("SELECT_FROM_WHERE_GROUP_ONE_SIMPLE.csv",
+                                        "SELECT title, max(age), avg(salary) FROM EMPLOYEES WHERE age > 30 GROUP BY title",
+                                        1)
+# Single table selection with group by reference fields
+SELECT_REF_FROM_ONE_GROUP_BY_REF = ("SELECT_FROM_WHERE_GROUP_ONE_SIMPLE.csv",
+                                    "SELECT #5 TITLE, max(#6), avg(#7) FROM EMPLOYEES WHERE #6 > 30 GROUP BY #5",
+                                    1)
+# Two table selection with group by named columns
+SELECT_NAMED_FROM_TWO_GROUP_BY_NAMED = ("SELECT_FROM_WHERE_GROUP_TWO_SIMPLE.csv",
+                                        "SELECT DEPARTMENTS.name, min(EMPLOYEES.salary), max(salary) FROM DEPARTMENTS, EMPLOYEES WHERE DEPARTMENTS.id == EMPLOYEES.d_id AND EMPLOYEES.age < 30 GROUP BY DEPARTMENTS.name",
+                                        2)
+# Two table selection with group by reference fields
+SELECT_REF_FROM_TWO_GROUP_BY_REF = ()
 
 
 @pytest.mark.parametrize(('test_file', 'stmt', 'confirms'), [
-    ('SELECT_FROM_ONE.csv',
-     'SELECT last_name, first_name, title, salary FROM EMPLOYEES',
-     1),
-    ('SELECT_FROM_TWO.csv',
-     'SELECT EMPLOYEES.id, title, salary, name, city, state FROM EMPLOYEES JOIN DEPARTMENTS ON d_id == DEPARTMENTS.id ORDER BY EMPLOYEES.id',
-     2),
-    ('SELECT_FROM_WHERE_ONE_SIMPLE.csv',
-     'SELECT last_name, first_name, title, salary FROM EMPLOYEES WHERE SALARY > 85000',
-     1),
-    ('SELECT_FROM_WHERE_ONE_COMPLEX.csv',
-     'SELECT last_name, first_name, title FROM EMPLOYEES WHERE (age < 25 AND salary > 75000 ) OR (age < 30 AND salary > 85000)',
-     1),
-    ('SELECT_FROM_WHERE_TWO.csv',
-     "SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM EMPLOYEES, DEPARTMENTS WHERE EMPLOYEES.d_id == DEPARTMENTS.id AND DEPARTMENTS.state == 'CA' AND EMPLOYEES.age > 50",
-     2),
-    ('SELECT_FROM_WHERE_TWO_JOIN.csv',
-     "SELECT last_name, first_name, title, age, DEPARTMENTS.name, city, state FROM EMPLOYEES RIGHT JOIN DEPARTMENTS ON EMPLOYEES.d_id == DEPARTMENTS.id WHERE DEPARTMENTS.state == 'CA' AND EMPLOYEES.age > 50",
-     2
-     ),
-    ('SELECT_FROM_WHERE_GROUP_ONE_SIMPLE.csv',
-     'SELECT title, max(age), avg(salary) FROM EMPLOYEES WHERE age > 30 GROUP BY title',
-     1
-     ),
-    ('SELECT_FROM_WHERE_GROUP_TWO_SIMPLE.csv',
-     'SELECT DEPARTMENTS.name, min(EMPLOYEES.salary), max(salary) FROM DEPARTMENTS, EMPLOYEES WHERE DEPARTMENTS.id == EMPLOYEES.d_id AND EMPLOYEES.age < 30 GROUP BY DEPARTMENTS.name',
-     2
-     )
+    PROJECT_NAMED_FROM_ONE, PROJECT_REF_FROM_ONE,
+    PROJECT_NAMED_FROM_TWO,
+    # PROJECT_REF_FROM_TWO,
+    SIMPLE_SELECT_NAMED_FROM_ONE, SIMPLE_SELECT_REF_FROM_ONE,
+    COMPLEX_SELECT_NAMED_FROM_ONE, COMPLEX_SELECT_REF_FROM_ONE,
+    COMPLEX_SELECT_NAMED_FROM_TWO,
+    SELECT_NAMED_FROM_TWO_JOINED,
+    SELECT_NAMED_FROM_ONE_GROUP_BY_NAMED, SELECT_REF_FROM_ONE_GROUP_BY_REF,
+    SELECT_NAMED_FROM_TWO_GROUP_BY_NAMED
 ])
 def test_sql(monkeypatch, test_file: str, stmt: str, confirms: int):
     confirm_seq = ''.join(['1\nY\nY\n' for _ in range(confirms)])
