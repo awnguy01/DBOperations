@@ -100,16 +100,6 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     aggregates = find_all_attribute_names_for_type(
         attributes, AttributeType.AGG)
 
-    if groups or aggregates:
-        if groups and aggregates:
-            commands[-1] += f' | {UnixGroupBy.compute_group_by_with_agg_command(groups + aggregates, results_headers)} | tail -n+2'
-        elif groups:
-            commands[-1] += f' | {UnixGroupBy.compute_group_by_command(groups, results_headers)}'
-        elif aggregates:
-            commands[-1] += f' | {UnixAgg.compute_agg_command(aggregates, results_headers)}'
-
-        results_headers = groups + aggregates
-
     if defer_select:
         attributes = UnixSelect.filter_select_attributes(attributes)
         projections = UnixProject.find_all_projections_for_source(
@@ -123,6 +113,17 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
             commands[-1] += f' | {select_command}'
         else:
             commands.append(select_command)
+            
+    if groups or aggregates:
+        if groups and aggregates:
+            commands[-1] += f' | {UnixGroupBy.compute_group_by_with_agg_command(groups + aggregates, results_headers)} | tail -n+2'
+        elif groups:
+            commands[-1] += f' | {UnixGroupBy.compute_group_by_command(groups, results_headers)}'
+        elif aggregates:
+            commands[-1] += f' | {UnixAgg.compute_agg_command(aggregates, results_headers)}'
+
+        results_headers = groups + aggregates
+
 
     sorts = [
         attribute.name
