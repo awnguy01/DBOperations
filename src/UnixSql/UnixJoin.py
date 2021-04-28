@@ -6,7 +6,7 @@ from models.Join import Join, JoinType
 from utils.db import find_target_source
 from models.Attribute import Attribute, AttributeType
 from models.Table import Table
-from UnixSql import UnixOrderBy
+from UnixSql import UnixOrder
 
 
 def compute_join_commands(joins: List[Join], sources: List[Table]):
@@ -42,9 +42,9 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                 right_attribute = f'{right_source.name}.{join.right_attribute}'
 
                 commands.append(
-                    f'{UnixOrderBy.compute_order_by_command([left_attribute], left_headers)} -o {left_f_name} {left_f_name}')
+                    f'{UnixOrder.compute_order_by_command([left_attribute], left_headers)} -o {left_f_name} {left_f_name}')
                 commands.append(
-                    f'{UnixOrderBy.compute_order_by_command([right_attribute], right_headers)} -o {right_f_name} {right_f_name}')
+                    f'{UnixOrder.compute_order_by_command([right_attribute], right_headers)} -o {right_f_name} {right_f_name}')
                 join_args = ['join -t ","']
 
                 if join.join_type == JoinType.LEFT:

@@ -7,7 +7,7 @@ from models.Attribute import Attribute, AttributeType
 from models.Join import Join, JoinType
 from models.Table import Table
 from antlr4.tree.Tree import TerminalNodeImpl
-from UnixSql import UnixAgg, UnixSelect, UnixGroupBy, UnixJoin, UnixOrderBy, UnixProject
+from UnixSql import UnixAgg, UnixSelect, UnixGroupBy, UnixJoin, UnixOrder, UnixProject
 import re
 from copy import deepcopy
 from os import path
@@ -113,7 +113,7 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
             commands[-1] += f' | {select_command}'
         else:
             commands.append(select_command)
-            
+
     if groups or aggregates:
         if groups and aggregates:
             commands[-1] += f' | {UnixGroupBy.compute_group_by_with_agg_command(groups + aggregates, results_headers)} | tail -n+2'
@@ -132,7 +132,7 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
         if attribute.association == AttributeType.ORDER_BY
     ]
     if sorts:
-        commands[-1] += f' | {UnixOrderBy.compute_order_by_command(sorts, results_headers)}'
+        commands[-1] += f' | {UnixOrder.compute_order_by_command(sorts, results_headers)}'
 
     if select_stmt_ctx.limit_stmt():
         limit, offset = extract_limit_offset(select_stmt_ctx.limit_stmt())
