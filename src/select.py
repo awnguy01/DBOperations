@@ -69,7 +69,7 @@ def column_offset_validation(arguments):
         if operand.startswith('#'):
             # if you are here the column offset can be a integer or string
             if operand[1:].isdecimal():
-                if int(operand[1:]) not in range(0, attributesCount):
+                if int(operand[1:]) not in range(1, attributesCount + 1):
                     if attributesCount == 1:
                         raise Exception(f'Did you miss passing delimiter arg?')
                     else:
@@ -149,7 +149,7 @@ def myselect(arguments,firstline):
         colstoproject = []
         for colref in projection.split(','):
             if colref[1:].isdecimal():
-                if int(colref[1:]) not in range(totalcols + 1):
+                if int(colref[1:]) not in range(1, totalcols + 1):
                     raise Exception("The column referenced in projection by number is invalid")
                 colstoproject.append(int(colref[1:])-1)
             else:
@@ -183,8 +183,8 @@ def myselect(arguments,firstline):
             for colref in projection.split(','):
                 if colref[1:].isdecimal():
                     colrefi = int(colref[1:])
-                    if colrefi not in range(0,totalcols):
-                        raise Exception("The column referenced in projection by number is not invalid")
+                    if colrefi not in range(1 ,totalcols + 1):
+                        raise Exception("The column referenced in projection by number is invalid")
                     colstoproject.append(colrefi - 1)
                 else:
                     raise Exception("The column referenced in projection by number is a string so invalid")
@@ -216,7 +216,7 @@ def projection_cols(line,projectedcols,splitter):
     :param splitter: user-specified field delimiter
     :return: user interested columns data separated by a separator
     """
-    rowdata = line.split(splitter)
+    rowdata = line.rstrip('\r\n').split(splitter)
     result = splitter.join([rowdata[columnNumber] for columnNumber in projectedcols])
     return result + '\n'
 

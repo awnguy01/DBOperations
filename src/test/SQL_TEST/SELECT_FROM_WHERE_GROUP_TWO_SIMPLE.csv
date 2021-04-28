@@ -1,0 +1,11 @@
+NAME,MIN(SALARY),MAX(SALARY)
+Accounting,58725.0,140935.0
+Business Development,79336.0,144506.0
+Engineering,86136.0,143037.0
+Finance,97758.0,137943.0
+Marketing,68510.0,138327.0
+Research and Development,55706.0,128417.0
+Sales,64789.0,134044.0
+Services,66323.0,147884.0
+Support,64078.0,147108.0
+Training,66566.0,140293.0

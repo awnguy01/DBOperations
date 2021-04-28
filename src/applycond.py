@@ -45,7 +45,7 @@ def type_conversion(val,data_type):
     if data_type in [int, float]:
         return float(val)
     elif data_type == str:
-        return val
+        return val.strip()
     else:
         print('Unrecognized data type')
         sys.exit(-1)
@@ -68,7 +68,6 @@ def apply_condition(condition, line, arguments):
     elif (condition[0] == '>='):
         return (myeval(condition[1], line, arguments, type(condition[2])) >= condition[2])
     elif (condition[0] == '=='):
-        #print(myeval(condition[1],line),myeval(condition[2],line))
         return (myeval(condition[1], line, arguments, type(condition[2])) == condition[2])
     elif (condition[0] == '!='):
         return (myeval(condition[1], line, arguments, type(condition[2])) != condition[2])
@@ -85,11 +84,11 @@ def apply_logicalop(condition,op1,op2=None):
     :param op2: Optional Boolean
     :return: returns evaluation of op1,op2 as Boolean
     '''
-    if condition == 'and':
+    if condition.upper() == 'AND':
          return op2 if op1 else False
-    elif condition == "or":
+    elif condition.upper() == 'OR':
          return True if op1 else op2
-    elif condition == 'not':
+    elif condition.upper() == 'NOT':
         return not (op1)
     else:
         print("something wrong with the condition you passed")
