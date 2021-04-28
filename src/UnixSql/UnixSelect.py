@@ -32,7 +32,7 @@ def compute_select_command(condition: str, projections: List[str], source: Table
     args.append(f"-p '{proj_str}'")
     args.append(f"-c '{cond_str}'")
 
-    if type(source.headers[0]) is str and not stdin:
+    if source.has_named_headers and not stdin:
         args.append('-h | tail -n+2')
 
     return ' '.join(args)
@@ -87,7 +87,14 @@ def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Tabl
                           for token
                           in tokens
                           if token.getText() != 'WHERE']).strip()
-    return re.sub(r'\b(\w+)\s\.\s(\w+)\b', r'\1.\2', condition)
+
+    condition = re.sub(r'\b(\w+)\s\.\s(\w+)\b', r'\1.\2', condition).upper()
+
+    for header in next((source for source in sources if source.name == target_source_name), None).headers:
+        rstr = rf'(\b{target_source_name}\.){header[0]}\b'
+        condition = re.sub(rstr, f'{header[1]}', condition)
+
+    return condition
 
 
 def filter_select_attributes(attributes: List[Attribute]) -> List[Attribute]:

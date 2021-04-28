@@ -65,7 +65,7 @@ def find_target_source(table_ref_ctx, sources: List[Table]) -> Table:
     elif hasattr(table_ref_ctx, 'table_alias') and table_ref_ctx.table_alias():
         return find_table_by_alias(table_ref_ctx.table_alias().getText(), sources)
     elif hasattr(table_ref_ctx, 'column_name') and table_ref_ctx.column_name():
-        return next((source for source in sources if table_ref_ctx.column_name().getText().upper() in source.headers), None)
+        return next((source for source in sources if table_ref_ctx.column_name().getText().upper() in [header[0] for header in source.headers]), None)
     elif hasattr(table_ref_ctx, 'function_name') and table_ref_ctx.function_name():
         fn_expr_ctx = table_ref_ctx.expr(0)
         if fn_expr_ctx.table_name():
@@ -73,7 +73,7 @@ def find_target_source(table_ref_ctx, sources: List[Table]) -> Table:
             source = source if source else find_table_by_alias(fn_expr_ctx.table_name().getText(), sources)
             return source
         else:
-            return next((source for source in sources if fn_expr_ctx.getText().upper() in source.headers), None)    
+            return next((source for source in sources if fn_expr_ctx.getText().upper() in [header[0] for header in source.headers]), None)    
     elif hasattr(table_ref_ctx, 'expr') and table_ref_ctx.expr():
         return find_target_source(table_ref_ctx.expr(), sources)
     # elif table_ref_ctx.expr():
@@ -87,5 +87,6 @@ def find_target_source(table_ref_ctx, sources: List[Table]) -> Table:
 def convert_attribute_name_to_ref_field(attribute: Attribute):
     raw_name = re.sub(STRIP_FN_REGEX, '', attribute.name)
     if raw_name[0] != '#':
-        attribute.name = f'#{attribute.source.headers.index(raw_name) + 1}'
+        header_names = [header[0] for header in attribute.source.headers]
+        attribute.name = re.sub(fr'(^|\(){raw_name}($|\))', rf'\1#{header_names.index(raw_name) + 1}\2', attribute.name)
     return attribute

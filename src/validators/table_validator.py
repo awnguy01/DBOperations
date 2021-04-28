@@ -52,6 +52,7 @@ class TableValidator(SQLiteParserVisitor):
                 confirmed = self.confirm(prompt)
                 if confirmed:
                     table.headers = headers
+                    table.has_named_headers = True
             else:
                 print(str(len(headers)) + ' column(s) detected.')
                 prompt = 'Is this correct? (Y/N) '

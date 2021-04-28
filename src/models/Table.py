@@ -8,3 +8,4 @@ class Table:
         self.alias = alias
         self.delimiter = delimiter
         self.headers = headers
+        self.has_named_headers = False

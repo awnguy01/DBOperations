@@ -1,5 +1,6 @@
 from copy import deepcopy
 import re
+from src.sql_executor import STRIP_FN_REGEX
 from typing import List
 from validators.antlr4.SQLiteParser import SQLiteParser
 from models.Join import Join, JoinType
@@ -34,9 +35,9 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                 left_f_name = left_f_name if left_f_name else f'/tmp/term_sql_{left_source.name}'
                 right_f_name = f'/tmp/term_sql_{right_source.name}'
                 left_headers = left_headers if left_headers else [
-                    f'{left_source.name}.{header}' for header in left_source.headers]
+                    (f'{left_source.name}.{header[0]}', f'{left_source.name}.{header[1]}') for header in left_source.headers]
                 right_headers = [
-                    f'{right_source.name}.{header}' for header in right_source.headers]
+                    (f'{right_source.name}.{header[0]}', f'{right_source.name}.{header[1]}') for header in right_source.headers]
 
                 left_attribute = f'{left_source.name}.{join.left_attribute}'
                 right_attribute = f'{right_source.name}.{join.right_attribute}'
@@ -53,9 +54,9 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                     join_args.append('-a2')
 
                 join_args.append(
-                    f'-1{left_headers.index(left_attribute) + 1}')
+                    f'-1{[header[0] for header in left_headers].index(left_attribute) + 1}')
                 join_args.append(
-                    f'-2{right_headers.index(right_attribute) + 1}')
+                    f'-2{[header[0] for header in right_headers].index(right_attribute) + 1}')
                 join_args.append(f'{left_f_name}')
                 join_args.append(f'{right_f_name}')
                 left_f_name += f'_{right_source.name}'
@@ -63,12 +64,16 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                     join_args.append(f'> {left_f_name}')
                 commands.append(' '.join(join_args))
                 left_headers += right_headers
-                left_headers.pop(left_headers.index(left_attribute))
-                left_headers.pop(left_headers.index(right_attribute))
-                
-                join_header = f'({left_source.name}.' + \
-                    re.sub(r'.*\.', '', left_attribute) + ',' + f'{right_source.name}.' + \
-                    re.sub(r'.*\.', '', right_attribute) + ')'
+                left_headers.pop(
+                    [header[0] for header in left_headers].index(left_attribute))
+                left_headers.pop(
+                    [header[0] for header in left_headers].index(right_attribute))
+
+                join_header = (f'JOIN.{left_attribute}.{right_attribute}',
+                               f'JOIN.{left_attribute}.{right_attribute}')
+                # join_header = f'{left_source.name}.' + \
+                #     re.sub(r'.*\.', '', left_attribute) + ',' + f'{right_source.name}.' + \
+                #     re.sub(r'.*\.', '', right_attribute) + ''
                 # join_header = f'{left_headers.pop(left_headers.index(left_attribute))}|{left_headers.pop(left_headers.index(right_attribute))}'
                 left_headers.insert(0, join_header)
                 join_counter -= 1
@@ -161,20 +166,75 @@ def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) ->
 
 def relabel_post_join_attributes(attributes: List[Attribute], joins: List[Join], join_source: Table) -> List[Attribute]:
 
-    # joined_sources = ([join.left for join in joins] +
-    #                   [join.right for join in joins])
-
-    # tmp_attributes = [deepcopy(attribute) for attribute in attributes]
-    # for attribute in tmp_attributes:
-    #     if attribute.name[0] != '#':
-    #         attribute.name =
-
-    # for i, header in enumerate(join_source.headers):
-    #     if 'JOIN' == header[0:4]:
-    #         for attribute in attributes:
-
     join_order: List[str] = list(dict.fromkeys([header for header in [re.sub(
-        r'\bJOIN.*|\..*', '', header) for header in join_source.headers] if header]))
+        r'\bJOIN.*|\..*', '', header[0]) for header in join_source.headers] if header]))
+
+    join_pairs = [(join.left, join.right) for join in joins]
+    join_sequence = []
+
+    for source_name in join_order:
+        for i in range(len(join_pairs) - 1, -1, -1):
+            if source_name in join_pairs[i]:
+                first, second = ['', '']
+                if join_pairs[i][0] == source_name:
+                    first, second = join_pairs.pop(i)
+                elif join_pairs[i][1] == source_name:
+                    second, first = join_pairs.pop(i)
+                join_sequence.append(first)
+                join_sequence.append(second)
+
+    join_source_refs = [header[1] for header in join_source.headers]
+    # print('REFSSSSS')
+    # print(join_source_refs)
+
+    # print('ORDERED JOIN PAIRS')
+    # print(join_sequence)
+
+    tmp_attributes = [deepcopy(attribute) for attribute in attributes]
+    # right_joined_attributes = [
+    #     (join.right, join.right_attribute) for join in joins]
+    sorted_distinct_attributes = sorted(dict.fromkeys(
+        [(attribute.source.name, re.sub(STRIP_FN_REGEX, '', attribute.name)) for attribute in tmp_attributes]), key=lambda pair: (join_order.index(pair[0]), int(pair[1][1:])))
+    # sorted_distinct_attributes = list(filter(
+    #     lambda pair: pair not in right_joined_attributes, sorted_distinct_attributes))
+
+    tmp_sorted_attributes = []
+
+    for i in range(len(sorted_distinct_attributes)):
+        attribute = sorted_distinct_attributes.pop()
+        if f'{attribute[0]}.{attribute[1]}' in join_source_refs:
+            tmp_sorted_attributes.append(attribute)
+        elif join_sequence[0] == attribute[0]:
+            tmp_sorted_attributes.append(attribute)
+            join_sequence.pop()
+
+    tmp_sorted_attributes.reverse()
+    sorted_distinct_attributes = tmp_sorted_attributes
+
+    # print('THE HEADERS OF THE JOIN')
+    # print(join_source.headers)
+    # print(len(join_source.headers))
+    print('SORTED ATTRIBUTES')
+    print(sorted_distinct_attributes)
+    # print('ALL THE TMP ATTRIBUTES')
+    # print([attribute.name for attribute in tmp_attributes])
+
+    for attribute in tmp_attributes:
+        if attribute.association != AttributeType.JOIN:
+            # attribute.name = f'JOIN.#{sorted_distinct_attributes.index((attribute.source.name, re.sub(STRIP_FN_REGEX, "", attribute.name))) + 1}'
+            joined_idx = sorted_distinct_attributes.index(
+                (attribute.source.name, re.sub(STRIP_FN_REGEX, '', attribute.name)))
+            attribute.name = re.sub(
+                r'(\w*\.)?#\d+', f'JOIN.#{joined_idx + 1}', attribute.name)
+            attribute.source = join_source
+
+    join_source.headers = [(f'JOIN.#{i + 1}', f'JOIN.#{i + 1}')
+                           for i in range(len(join_source.headers))]
+
+    print('POST RELABEL')
+    print([(attribute.source.name, attribute.name) for attribute in tmp_attributes])
+
+    return tmp_attributes
 
     for source_name in join_order:
         related_attributes = [
@@ -202,7 +262,6 @@ def relabel_post_join_attributes(attributes: List[Attribute], joins: List[Join],
     #         tmp_headers = [re.sub(rf'({source.name}\.){source_header}',
     #                               f'\1#{i + 1}', header) for header in tmp_headers]
 
-    # print(tmp)
     return tmp_attributes
 
 

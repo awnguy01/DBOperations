@@ -40,11 +40,14 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     commands: List[str] = []
     select_core_ctx = select_stmt_ctx.select_core(0)
     sources = list(schema.values())
-    # for source in sources:
-    #     source.headers = [(header, f'#{i + 1}')
-    #                       for i, header in enumerate(source.headers)]
+    for source in sources:
+        source.headers = [(header, f'#{i + 1}')
+                          for i, header in enumerate(source.headers)]
     attributes: List[Attribute] = map_table_attributes(
         select_stmt_ctx, sources)
+
+    # print([str((attribute.name, attribute.association)) for attribute in attributes])
+
     joins = UnixJoin.extract_joins(select_core_ctx, sources)
     defer_select = len(dict.fromkeys(
         [attribute.source.name for attribute in attributes if attribute.association == AttributeType.WHERE])) > 1
@@ -52,6 +55,9 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     results_headers = []
 
     commands.append(compute_header_command(attributes))
+
+    attributes = [convert_attribute_name_to_ref_field(
+        attribute) for attribute in attributes]
 
     for source in sources:
         related_attributes = [
@@ -73,8 +79,19 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
                 projections, source, True))
 
         # Realign order of table headers
-        source.headers = [source.headers[idx] for idx in [
-            int(projection[1:]) - 1 if projection[0] == '#' else source.headers.index(projection) for projection in projections]]
+        source.headers = [
+            header for header in source.headers if header[1] in projections]
+
+        for i in range(len(source.headers)):
+            for attribute in related_attributes:
+                if attribute.name[1] == source.headers[i][1]:
+                    attribute.name[1] = f'#{i + 1}'
+            source.headers[i] = (source.headers[i][0], f'#{i + 1}')
+        print('REFACTORED ATTRIBTUES')
+        print(attribute.name for attribute in related_attributes)
+
+        # source.headers = [source.headers[idx] for idx in [
+        #     int(projection[1:]) - 1 if projection[0] == '#' else source.headers.index(projection) for projection in projections]]
         if joins:
             commands[-1] += f' > /tmp/term_sql_{source.name}'
 
@@ -83,12 +100,14 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
 
     if joins:
         commands += UnixJoin.compute_join_commands(joins, sources)
-        attributes = UnixJoin.filter_join_attributes(attributes)
         attributes = UnixJoin.relabel_post_join_attributes(
             attributes, joins, sources[0])
+        attributes = UnixJoin.filter_join_attributes(attributes)
 
         projections = UnixProject.find_all_projections_for_source(
             attributes, sources[0])
+        print('PROJECTIONS FOR THE JOIN SOURCE ARE')
+        print(projections)
         commands[-1] += f' | {UnixProject.compute_project_command(projections, sources[0], False)}'
         sources = [sources[0]]
         sources[0].headers = projections
@@ -177,7 +196,7 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
                 for source in sources:
                     for header in source.headers:
                         attributes.append(Attribute(
-                            header, alias, source, AttributeType.SELECT))
+                            header[0], alias, source, AttributeType.SELECT))
         elif result_column_ctx.expr().column_name():
             attributes.append(Attribute(result_column_ctx.expr().column_name().getText().upper(), alias,
                                         table, AttributeType.SELECT))
@@ -222,6 +241,7 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
         recursive_attribute_append(
             order_by_stmt_ctx, AttributeType.ORDER_BY)
 
+    # return [convert_attribute_name_to_ref_field(attribute) for attribute in attributes]
     return attributes
 
 
