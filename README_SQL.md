@@ -47,3 +47,23 @@ LIMIT <n>
 - `<file>` can be any valid table file within the current working directory. File extensions are not included in the query (i.e. `EMPLOYEES` is accepted but `EMPLOYEES.csv` is not)
 - `<condition>` can include any combination of unary (`-`), binary (`==`, `<`, `<=`, `>`, `>=`), and logical (`AND`, `OR`, `NOT`) operators. Conditions with subqueries are NOT accepted. 
 - `<n>` is any non-decimal positive number. 0 is also allowed.
+
+## Development/Testing Guide
+
+### Prerequisites
+
+- Python 3 https://www.python.org/
+- Java 8 https://java.com/
+- Antlr4 https://www.antlr.org/
+
+### Compiling Grammar Files
+
+This program uses `Antlr4` to generate lexers and parsers for SQL. To do this, Antlr4 compiles grammar files with the `.g4` extension into Python 3 modules that can be integrated called from the code. To modify the parsing logic, follow these steps:
+- Install `Antlr4` following directions from the download site
+- Add the path to your installation as an alias called `antlr4` in `~/.bash_profile`
+- Make any desired modifications to the files `src/validators/antlr4/SQLiteLexer.g4` and `src/validators/antlr4/SQLiteParser.g4`
+- Run the bash script `src/validators/antlr4/build_antlr4.sh`
+
+### Testing
+
+All tests are run using the `pytest` framework, which can be installed using `pip3 install pytest`. To execute the automated tests, run `pytest` from the project root.
