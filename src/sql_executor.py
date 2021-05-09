@@ -1,4 +1,4 @@
-from utils.db import find_table_by_name, in_order_traversal, convert_attribute_name_to_ref_field
+from utils.db import find_table_by_name, in_order_traversal, transform_headers_to_refs
 from typing import Dict, List, Tuple
 from validators.antlr4.SQLiteParser import SQLiteParser
 from utils.valid import parse_context
@@ -40,11 +40,18 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     commands: List[str] = []
     select_core_ctx = select_stmt_ctx.select_core(0)
     sources = list(schema.values())
-    # for source in sources:
-    #     source.headers = [(header, f'#{i + 1}')
-    #                       for i, header in enumerate(source.headers)]
     attributes: List[Attribute] = map_table_attributes(
         select_stmt_ctx, sources)
+    cond_map: Dict[str, str] = {}
+
+    if any(attr.association == AttributeType.WHERE for attr in attributes):
+        for source in sources:
+            cond_map[source.name] = UnixSelect.extract_conditions(
+                select_core_ctx.where_clause(), sources, source.name)
+            for i, header in enumerate(source.headers):
+                cond_map[source.name] = re.sub(
+                    fr'\b{header}\b', f'#{i + 1}', cond_map[source.name])
+
     joins = UnixJoin.extract_joins(select_core_ctx, sources)
     defer_select = len(dict.fromkeys(
         [attribute.source.name for attribute in attributes if attribute.association == AttributeType.WHERE])) > 1
@@ -52,6 +59,15 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     results_headers = []
 
     commands.append(compute_header_command(attributes))
+
+    for attribute in attributes:
+        col_name = re.sub(STRIP_FN_AND_TABLE_REGEX, '', attribute.name)
+        if col_name[0] != '#':
+            attribute.name = re.sub(
+                col_name, f'#{attribute.source.headers.index(col_name) + 1}', attribute.name)
+
+    for source in sources:
+        source.headers = [f'#{i + 1}' for i in range(len(source.headers))]
 
     for source in sources:
         related_attributes = [
@@ -62,10 +78,10 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
         if not defer_select and any(attr.association == AttributeType.WHERE for attr in related_attributes):
             projections = UnixProject.find_all_projections_for_source(
                 UnixSelect.filter_select_attributes(attributes), source)
-            condition = UnixSelect.extract_conditions(
-                select_core_ctx.where_clause(), sources, source.name)
+            # condition = UnixSelect.extract_conditions(
+            #     select_core_ctx.where_clause(), sources, source.name)
             commands.append(UnixSelect.compute_select_command(
-                condition, projections, source, False))
+                cond_map[source.name], projections, source, False))
         else:
             projections = UnixProject.find_all_projections_for_source(
                 attributes, source)
@@ -75,6 +91,7 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
         # Realign order of table headers
         source.headers = [source.headers[idx] for idx in [
             int(projection[1:]) - 1 if projection[0] == '#' else source.headers.index(projection) for projection in projections]]
+        # If more than one source, send to intermediate file
         if joins:
             commands[-1] += f' > /tmp/term_sql_{source.name}'
 
@@ -104,11 +121,11 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
         attributes = UnixSelect.filter_select_attributes(attributes)
         projections = UnixProject.find_all_projections_for_source(
             attributes, sources[0])
-        condition = UnixSelect.extract_conditions(
-            select_core_ctx.where_clause(), sources, sources[0].name)
+        # condition = UnixSelect.extract_conditions(
+        #     select_core_ctx.where_clause(), sources, sources[0].name)
         stdin_select = len(joins) <= 1
         select_command = UnixSelect.compute_select_command(
-            condition, projections, sources[0], stdin_select)
+            cond_map[sources[0].name], projections, sources[0], stdin_select)
         if stdin_select:
             commands[-1] += f' | {select_command}'
         else:
@@ -123,7 +140,6 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
             commands[-1] += f' | {UnixAgg.compute_agg_command(aggregates, results_headers)}'
 
         results_headers = groups + aggregates
-
 
     sorts = [
         attribute.name
@@ -167,8 +183,8 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
 
     for result_column_ctx in result_column_ctx_list:
         table: Table = find_target_source(result_column_ctx, sources)
-        alias = result_column_ctx.column_alias().getText(
-        ).upper() if result_column_ctx.column_alias() else None
+        alias = re.sub(r'\'', '', result_column_ctx.column_alias().getText(
+        ).upper()) if result_column_ctx.column_alias() else None
         if result_column_ctx.STAR():
             if table:
                 for header in table.headers:
@@ -180,6 +196,11 @@ def map_table_attributes(select_stmt_ctx: SQLiteParser.Select_stmtContext, sourc
                         attributes.append(Attribute(
                             header, alias, source, AttributeType.SELECT))
         elif result_column_ctx.expr().column_name():
+            # ref = f'#{table.headers.index(result_column_ctx.expr().column_name().getText().upper()) + 1}'
+            # print('REF IS ')
+            # print(ref)
+            # attributes.append(
+            #     Attribute(ref, alias, table, AttributeType.SELECT))
             attributes.append(Attribute(result_column_ctx.expr().column_name().getText().upper(), alias,
                                         table, AttributeType.SELECT))
         elif result_column_ctx.expr().REF_FIELD():

@@ -66,7 +66,7 @@ SELECT_NAMED_FROM_ONE_GROUP_BY_NAMED = ("SELECT_FROM_WHERE_GROUP_ONE_SIMPLE.csv"
                                         1)
 # Single table selection with group by reference fields
 SELECT_REF_FROM_ONE_GROUP_BY_REF = ("SELECT_FROM_WHERE_GROUP_ONE_SIMPLE.csv",
-                                    "SELECT #5 TITLE, max(#6), avg(#7) FROM EMPLOYEES WHERE #6 > 30 GROUP BY #5",
+                                    "SELECT #5 TITLE, max(#6) 'MAX(AGE)', avg(#7) 'AVG(SALARY)' FROM EMPLOYEES WHERE #6 > 30 GROUP BY #5",
                                     1)
 # Two table selection with group by named columns
 SELECT_NAMED_FROM_TWO_GROUP_BY_NAMED = ("SELECT_FROM_WHERE_GROUP_TWO_SIMPLE.csv",
@@ -78,15 +78,14 @@ SELECT_REF_FROM_TWO_GROUP_BY_REF = ()
 
 @pytest.mark.parametrize(('test_file', 'stmt', 'confirms'), [
     PROJECT_NAMED_FROM_ONE, PROJECT_REF_FROM_ONE,
-    PROJECT_NAMED_FROM_TWO,
-    # PROJECT_REF_FROM_TWO,
+    # PROJECT_NAMED_FROM_TWO,
+    # # PROJECT_REF_FROM_TWO,
     SIMPLE_SELECT_NAMED_FROM_ONE, SIMPLE_SELECT_REF_FROM_ONE,
     COMPLEX_SELECT_NAMED_FROM_ONE, COMPLEX_SELECT_REF_FROM_ONE,
-    COMPLEX_SELECT_NAMED_FROM_TWO,
-    SELECT_NAMED_FROM_TWO_JOINED,
-    SELECT_NAMED_FROM_ONE_GROUP_BY_NAMED, 
-    # SELECT_REF_FROM_ONE_GROUP_BY_REF,
-    SELECT_NAMED_FROM_TWO_GROUP_BY_NAMED
+    # COMPLEX_SELECT_NAMED_FROM_TWO,
+    # SELECT_NAMED_FROM_TWO_JOINED,
+    SELECT_NAMED_FROM_ONE_GROUP_BY_NAMED, SELECT_REF_FROM_ONE_GROUP_BY_REF,
+    # SELECT_NAMED_FROM_TWO_GROUP_BY_NAMED
 ])
 def test_sql(monkeypatch, test_file: str, stmt: str, confirms: int):
     confirm_seq = ''.join(['1\nY\nY\n' for _ in range(confirms)])

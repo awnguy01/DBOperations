@@ -89,3 +89,6 @@ def convert_attribute_name_to_ref_field(attribute: Attribute):
     if raw_name[0] != '#':
         attribute.name = f'#{attribute.source.headers.index(raw_name) + 1}'
     return attribute
+
+def transform_headers_to_refs(source: Table):
+    source.headers = (f'#{i + 1}' for i in range(len(source.headers)))

@@ -38,4 +38,6 @@ def find_all_projections_for_source(attributes: List[Attribute], source: Table):
             for attribute
             in attributes
             if attribute.source.name == source.name
-        ])), key=(lambda projection: int(projection[1:]) if projection[0] == '#' else source.headers.index(projection)))
+        ])), 
+        key=(lambda projection: int(projection[1:])))
+        # key=(lambda projection: int(projection[1:]) if projection[0] == '#' else source.headers.index(projection)))

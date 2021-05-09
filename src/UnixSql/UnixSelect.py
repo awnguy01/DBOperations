@@ -1,7 +1,7 @@
 
 from os import path
 import re
-from src.utils.db import find_target_source
+from utils.db import find_target_source
 from typing import List
 from models.Table import Table
 from models.Attribute import Attribute, AttributeType
@@ -87,7 +87,7 @@ def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Tabl
                           for token
                           in tokens
                           if token.getText() != 'WHERE']).strip()
-    return re.sub(r'\b(\w+)\s\.\s(\w+)\b', r'\1.\2', condition)
+    return re.sub(r'\b(\w+)\s\.\s(\w+)\b', r'\1.\2', condition).upper()
 
 
 def filter_select_attributes(attributes: List[Attribute]) -> List[Attribute]:
