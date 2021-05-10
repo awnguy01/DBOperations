@@ -5,7 +5,7 @@ class JoinType(Enum):
     INNER = 1
     LEFT = 2
     RIGHT = 3
-    FULL = 4
+    CROSS = 4
 
 
 class Join:
