@@ -1,7 +1,7 @@
 
 from os import path
 import re
-from src.utils.db import find_target_source
+from utils.db import find_target_source, replace_columns_with_field_refs
 from typing import List
 from models.Table import Table
 from models.Attribute import Attribute, AttributeType
@@ -20,33 +20,29 @@ def compute_select_command(condition: str, projections: List[str], source: Table
         args.append("-i '" + source.full_path + "'")
     args.append("-s '" + source.delimiter + "'")
 
-    proj_str = ','.join(projections)
-    cond_str = re.sub('\'', '"', condition)
-
-    for i, header in enumerate(source.headers):
-        proj_str = re.sub(fr'\b{header}\b', f'#{i + 1}',
-                          proj_str, flags=re.IGNORECASE)
-        cond_str = re.sub(fr'\b({source.name}\.)?{header}\b', f'#{i + 1}',
-                          cond_str, flags=re.IGNORECASE)
+    proj_str, cond_str = replace_columns_with_field_refs(
+        source.headers,
+        [','.join(projections), re.sub('\'', '"', condition)],
+        source.name)
 
     args.append(f"-p '{proj_str}'")
     args.append(f"-c '{cond_str}'")
 
-    if type(source.headers[0]) is str and not stdin:
+    if source.has_header_row and not stdin:
         args.append('-h | tail -n+2')
 
     return ' '.join(args)
 
 
-def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Table], target_source_name: str) -> str:
+def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Table], target_source_names: List[str]) -> str:
     def invalid_source_reference(expr_ctx: SQLiteParser.ExprContext):
         op_expr_ctx_list = in_order_traversal(
             expr_ctx, SQLiteParser.ExprContext)
-        if len([op_expr_ctx for op_expr_ctx in op_expr_ctx_list if op_expr_ctx.column_name()]) > 1:
+        if len([op_expr_ctx for op_expr_ctx in op_expr_ctx_list if op_expr_ctx.column_name() or op_expr_ctx.REF_FIELD()]) > 1:
             return True
         for op_expr_ctx in op_expr_ctx_list:
             if op_expr_ctx.column_name():
-                if target_source_name != find_target_source(op_expr_ctx, sources).name:
+                if find_target_source(op_expr_ctx, sources).name not in target_source_names:
                     return True
 
         return False
@@ -87,7 +83,7 @@ def extract_conditions(ctx: SQLiteParser.Where_clauseContext, sources: List[Tabl
                           for token
                           in tokens
                           if token.getText() != 'WHERE']).strip()
-    return re.sub(r'\b(\w+)\s\.\s(\w+)\b', r'\1.\2', condition)
+    return re.sub(r'\b(\w+|#\d+)\s\.\s(\w+|#\d+)\b', r'\1.\2', condition).upper()
 
 
 def filter_select_attributes(attributes: List[Attribute]) -> List[Attribute]:

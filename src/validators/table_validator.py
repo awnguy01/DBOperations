@@ -52,12 +52,13 @@ class TableValidator(SQLiteParserVisitor):
                 confirmed = self.confirm(prompt)
                 if confirmed:
                     table.headers = headers
+                    table.has_header_row = True
             else:
                 print(str(len(headers)) + ' column(s) detected.')
                 prompt = 'Is this correct? (Y/N) '
                 confirmed = self.confirm(prompt)
                 if confirmed:
-                    table.headers = [i for i in range(len(headers))]
+                    table.headers = [f'#{i + 1}' for i in range(len(headers))]
 
             if confirmed:
                 break
@@ -77,6 +78,9 @@ class TableValidator(SQLiteParserVisitor):
                         else:
                             self.set_table_headers(table)
                             self.schema[table_name_text] = table
+                    if table_or_subquery_ctx.table_alias():
+                        self.schema[table_name_text].alias = table_or_subquery_ctx.table_alias(
+                        ).getText().upper()
         parse_tables(ctx)
         if ctx.join_clause():
             parse_tables(ctx.join_clause())
