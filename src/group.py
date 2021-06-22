@@ -43,7 +43,7 @@ It also returns the line against which it performs the column reference validati
     groupingattributes = arguments[0].split(',')
     inputfile = arguments[1]
     header = inputfile.readline()
-    splitter = arguments[4]
+    splitter = '\t' if arguments[4] == '\\t' else arguments[4]
     attributesCount = len(header.split(splitter))
     # operands = arguments[0].split(',')
     operands = aggattrlist
@@ -194,7 +194,8 @@ def myeval(op, line, arguments):
     :param line: line read from the input data file
     :return: column and constant converted into appropriate types
     '''
-    fields = line.split(arguments[4])
+    splitter = '\t' if arguments[4] == '\\t' else arguments[4]
+    fields = line.strip('\n').split(splitter)
     index = op[1:]
     # if a column is referred by a number
     if index.isdecimal():
@@ -267,6 +268,7 @@ def group_by_hash(args, firstline):
     :return: results
     '''
     attributes, input, output, hasheader, split, aggfunc = args
+    split = '\t' if split == '\\t' else split
     aggfunclists = aggfunc.split(',')
     attrlist = [attr[1:] for attr in attributes.split(',')]
 

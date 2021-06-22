@@ -1,6 +1,7 @@
 import os
 import glob
 import re
+from validators.antlr4.SQLiteParser import SQLiteParser
 from typing import Dict, List
 from antlr4.tree.Tree import TerminalNodeImpl
 from models.Attribute import Attribute
@@ -102,3 +103,14 @@ def replace_columns_with_field_refs(headers: List[str], sub_targets: List[str], 
             sub_targets = [re.sub(fr'\b({source_name}\.)?{ref}\b', f'#{i + 1}',
                                   target_str, flags=re.IGNORECASE) for target_str in sub_targets]
     return sub_targets
+
+
+def find_all_relevant_source_names(from_clause_ctx: SQLiteParser.From_clauseContext):
+    relevant_source_names = [table_ctx.table_name().getText()
+                             for table_ctx in from_clause_ctx.table_or_subquery()]
+    if (from_clause_ctx.join_clause()):
+        join_clause_ctx = from_clause_ctx.join_clause()
+        relevant_source_names += [join_clause_ctx.table_or_subquery().table_name().getText()] + [
+            join_condition_ctx.table_or_subquery().table_name().getText()
+            for join_condition_ctx in join_clause_ctx.join_condition()]
+    return relevant_source_names

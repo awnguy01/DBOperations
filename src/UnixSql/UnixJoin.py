@@ -23,6 +23,8 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
     left_f_name = None
     # Track the number of remaining joins that need to occur
     join_counter = len(joins)
+    # Assume all source tables have the same delimiter (potential for future improvement to join tables with different delimiters)
+    delimiter = "$'\\t'" if sources[0].delimiter == '\t' else f'"{sources[0].delimiter}"'
 
     while join_counter:
         for i in range(join_counter):
@@ -60,7 +62,7 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                 if join.join_type == JoinType.CROSS:
                     # If this is a cartesian product, append a simple join command with a -j argument greater than the max number of headers
                     # from either the left or right-hand side
-                    join_args.append('join -t ","')
+                    join_args.append(f'join -t {delimiter}')
                     join_args.append(
                         f'-j {max(len(left_headers), len(right_headers)) + 1}')
                 else:
@@ -69,10 +71,10 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
 
                     # Source or intermediate files must be sorted before joining
                     commands.append(
-                        f'{UnixOrder.compute_order_by_command([left_attribute], left_headers)} -o {left_f_name} {left_f_name}')
+                        f'{UnixOrder.compute_order_by_command([left_attribute], Table(full_path="", name="", headers=left_headers, delimiter=sources[0].delimiter))} -o {left_f_name} {left_f_name}')
                     commands.append(
-                        f'{UnixOrder.compute_order_by_command([right_attribute], right_headers)} -o {right_f_name} {right_f_name}')
-                    join_args.append('join -t ","')
+                        f'{UnixOrder.compute_order_by_command([right_attribute], Table(full_path="", name="", headers=right_headers, delimiter=sources[0].delimiter))} -o {right_f_name} {right_f_name}')
+                    join_args.append(f'join -t {delimiter}')
 
                     # Apply appropriate arguments for LEFT and RIGHT joins
                     if join.join_type == JoinType.LEFT:
@@ -96,7 +98,7 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                     left_f_name += f'_{right_source.name}'
                     join_args.append(f'> {left_f_name}')
                 commands.append(' '.join(join_args))
-                
+
                 if join.join_type == JoinType.CROSS:
                     # If cartesian product was applied, remove first two columns
                     commands[-1] += ' | cut -c 2-'
@@ -116,7 +118,7 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
     sources.insert(0, Table(
         full_path=left_f_name,
         name='JOIN',
-        delimiter=',',
+        delimiter=sources[0].delimiter,
         headers=left_headers
     ))
 
@@ -190,7 +192,7 @@ def extract_joins(ctx: SQLiteParser.Select_coreContext, sources: List[Table]) ->
             joins.append(join)
             join = Join(left=join.right)
 
-    # Previous steps may not be able to find the correct attributes being joined on. Apply this function to 
+    # Previous steps may not be able to find the correct attributes being joined on. Apply this function to
     # perform a deeper search
     determine_missing_join_attributes(joins, sources, eq_conditions)
     # Change any column names to field references
@@ -236,7 +238,7 @@ def determine_missing_join_attributes(joins: List[Join],
                                                                 SQLiteParser.ExprContext]]) -> None:
     """
     Determine which Join objects are missing the columns on which the join is occurring and fill in the missing column information
-    """                  
+    """
     # Deep search for any Joined tables that may be missing the attributes on which the join is occurring
     # Analyze join objects that aren't cartesian products and are missing the join attribute for the left-hand side
     uncertains = [join for join in joins if not join.join_type ==
@@ -293,7 +295,7 @@ def relabel_post_join_attributes(attributes: List[Attribute], joins: List[Join],
         related_attributes = [
             attribute for attribute in attributes if attribute.source.name == source_name]
 
-    # Format each join attribute into a list of tuples consisting of the source table and attribute name 
+    # Format each join attribute into a list of tuples consisting of the source table and attribute name
     join_attributes_abbr = [
         (attribute.source.name, attribute.name) for attribute in attributes if attribute.association == AttributeType.JOIN]
     tmp_attributes = [deepcopy(attribute) for attribute in attributes]
