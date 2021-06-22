@@ -211,9 +211,6 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
         limit, offset = extract_limit_offset(select_stmt_ctx.limit_stmt())
         commands[-1] += f' | {compute_limit_command(limit, offset)}'
 
-    # Apply any optimizations
-    # reduce_join_intermediates(commands, len(joins))
-
     return ' ; '.join(commands)
 
 
