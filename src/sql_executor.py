@@ -197,7 +197,7 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
         if attribute.association == AttributeType.ORDER_BY
     ]
     if sorts:
-        commands[-1] += f' | {UnixOrder.compute_order_by_command(sorts, sources[0].headers)}'
+        commands[-1] += f' | {UnixOrder.compute_order_by_command(sorts, sources[0])}'
 
     # Generate and append head/tail commands for LIMIT and OFFSET
     if select_stmt_ctx.limit_stmt():
