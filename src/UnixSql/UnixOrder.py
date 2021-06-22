@@ -3,6 +3,9 @@ import re
 
 
 def compute_order_by_command(targets: List[str], src_headers: List[str]) -> str:
+    """
+    Modular function for translating any ORDER BY clauses in the SQL statement into UNIX commands
+    """
     args = [f'sort -V -t ","']
     fields = ' '.join(targets)
     for i, header in enumerate(src_headers):
