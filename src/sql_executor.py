@@ -2,9 +2,9 @@ from typing import Dict, List, Tuple
 from validators.antlr4.SQLiteParser import SQLiteParser
 from utils.valid import parse_context
 from utils.db import find_target_source, in_order_traversal, find_all_relevant_source_names
-from utils.optimizer import reduce_join_intermediates
+from utils.optimizer import simplify_basic_star_select, reduce_join_intermediates
 from models.Attribute import Attribute, AttributeType
-from models.Join import Join
+from models.Join import Join, JoinType
 from models.Table import Table
 from UnixSql import UnixAgg, UnixSelect, UnixGroupBy, UnixJoin, UnixOrder, UnixProject
 import re
@@ -55,8 +55,11 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     attributes: List[Attribute] = map_table_attributes(
         select_stmt_ctx, sources)
 
-    sources = [deepcopy(source) for source in sources if source.name in [
-        attribute.source.name for attribute in attributes]]
+    # Early optimization to skip all other calculations if this is just a simple star select
+    basic_star_command = simplify_basic_star_select(
+        select_core_ctx, attributes)
+    if basic_star_command is not None:
+        return basic_star_command
 
     # Track all potential joins in the SQL statement, the presence of which drastically affects the path of logic
     joins: List[Join] = UnixJoin.extract_joins(select_core_ctx, sources)
@@ -144,7 +147,11 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
 
     if joins:
         # Generate and append commands for joins
-        commands += UnixJoin.compute_join_commands(joins, sources)
+        join_command = UnixJoin.compute_join_commands(joins, sources)
+        if JoinType.CROSS in [join.join_type for join in joins]:
+            commands[-1] = re.sub('>.*', f'| {join_command[0]}', commands[-1])
+        else:
+            commands += join_command
         # Filter out the JOIN attributes from the attributes list
         attributes = UnixJoin.filter_join_attributes(attributes)
         # Realign attribute field references to joined table columns
@@ -203,9 +210,6 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     if select_stmt_ctx.limit_stmt():
         limit, offset = extract_limit_offset(select_stmt_ctx.limit_stmt())
         commands[-1] += f' | {compute_limit_command(limit, offset)}'
-
-    # Apply any optimizations
-    # reduce_join_intermediates(commands, len(joins))
 
     return ' ; '.join(commands)
 

@@ -73,7 +73,10 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
                     commands.append(
                         f'{UnixOrder.compute_order_by_command([left_attribute], Table(full_path="", name="", headers=left_headers, delimiter=sources[0].delimiter))} -o {left_f_name} {left_f_name}')
                     commands.append(
-                        f'{UnixOrder.compute_order_by_command([right_attribute], Table(full_path="", name="", headers=right_headers, delimiter=sources[0].delimiter))} -o {right_f_name} {right_f_name}')
+                        f'{UnixOrder.compute_order_by_command([right_attribute], Table(full_path="", name="", headers=right_headers, delimiter=sources[0].delimiter))}')
+                    # Sort in place only if there are more joins. Otherwise, just out to stdin to pipe to the join
+                    commands[-1] += f' -o {right_f_name} {right_f_name}' if join_counter > 1 else f' {right_f_name}'
+
                     join_args.append(f'join -t {delimiter}')
 
                     # Apply appropriate arguments for LEFT and RIGHT joins
@@ -90,14 +93,19 @@ def compute_join_commands(joins: List[Join], sources: List[Table]):
 
                 # Add left and right hand files to complete the join command
                 join_args.append(f'{left_f_name}')
-                join_args.append(f'{right_f_name}')
+                join_args.append(
+                    f'{right_f_name}' if join_counter > 1 else '-')
 
                 if len(joins) > 1:
                     # If there is more than one join, output the result to an intermediate file whose name is
                     # the combination of both sides of the join
                     left_f_name += f'_{right_source.name}'
                     join_args.append(f'> {left_f_name}')
-                commands.append(' '.join(join_args))
+                    commands.append(' '.join(join_args))
+                elif len(commands) > 0:
+                    commands[-1] += f' | {" ".join(join_args)}'
+                else:
+                    commands.append(f'{" ".join(join_args)}')
 
                 if join.join_type == JoinType.CROSS:
                     # If cartesian product was applied, remove first two columns
