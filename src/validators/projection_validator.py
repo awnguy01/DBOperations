@@ -1,6 +1,6 @@
 from typing import Dict, List
 from models.Table import Table
-from utils.db import col_name_found, ref_field_in_bounds
+from utils.db import col_name_found, ref_field_in_bounds, find_all_relevant_source_names
 from validators.antlr4.SQLiteParser import SQLiteParser
 from validators.antlr4.SQLiteParserVisitor import SQLiteParserVisitor
 
@@ -11,7 +11,9 @@ class ProjectionValidator(SQLiteParserVisitor):
         self.visit(ctx)
 
     def visitSelect_core(self, ctx: SQLiteParser.Select_coreContext):
-        sources: List[Table] = self.schema.values()
+        sources: List[Table] = [source for source in self.schema.values()
+               if source.name in find_all_relevant_source_names(ctx.from_clause())]
+        
         for result_column in ctx.result_column():
             if result_column.STAR():
                 continue

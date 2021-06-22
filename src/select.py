@@ -60,7 +60,7 @@ def column_offset_validation(arguments):
     """
     inputfile = arguments[1]
     header = inputfile.readline()
-    splitter = arguments[4]
+    splitter = '\t' if arguments[4] == '\\t' else arguments[4]
     attributesCount = len(header.split(splitter))
     operands = arguments[0].split()
     hasheader = arguments[3]
@@ -81,7 +81,6 @@ def column_offset_validation(arguments):
                         raise Exception(f'column offset "{operand}" entered is not found in input data header')
                 else:
                     raise Exception(f'column offset "{operand}" cannot be a string as input data has no header')
-
     return header
 
 
@@ -129,7 +128,7 @@ def myselect(arguments,firstline):
     myoutput = arguments[2]
     projection = arguments[5]
     hasheader = arguments[3]
-    splitter = arguments[4]
+    splitter = '\t' if arguments[4] == '\\t' else arguments[4]
     totalcols = len(firstline.split(splitter))
 
     if hasheader:  # this is the header switch

@@ -30,7 +30,8 @@ def compute_project_command(projection_list: List[str], source: Table, initial: 
             # Append the full path to the source table if this is the first time the table is printed to stdout,
             # otherwise, assume the table is already printed by a previous piped command
             cut_args.append(f'"{source.full_path}"')
-        cut_args.append(f'-d "{source.delimiter}" -f "{projections}"')
+        delimiter = "$'\\t'" if source.delimiter == '\t' else f'"{source.delimiter}"'
+        cut_args.append(f'-d {delimiter} -f "{projections}"')
         pipes.append(' '.join(cut_args))
 
     if initial and source.has_header_row:

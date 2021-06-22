@@ -1,6 +1,6 @@
 from typing import Dict, List, Set
 from models.Table import Table
-from utils.db import find_table_in_directory, col_name_found, ref_field_in_bounds
+from utils.db import find_table_in_directory, col_name_found, ref_field_in_bounds, find_all_relevant_source_names
 from validators.antlr4.SQLiteParser import SQLiteParser
 from validators.antlr4.SQLiteParserVisitor import SQLiteParserVisitor
 
@@ -14,8 +14,8 @@ class GroupByValidator(SQLiteParserVisitor):
         if not ctx.group_by_clause():
             return
 
-        # sources: List[Table] = self.visitFrom_clause(ctx.from_clause())
-        sources: List[Table] = self.schema.values()
+        sources: List[Table] = [source for source in self.schema.values()
+                                if source.name in find_all_relevant_source_names(ctx.from_clause())]
         group_by_columns: List[str] = []
 
         for expr_ctx in ctx.group_by_clause().expr():

@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple
 from validators.antlr4.SQLiteParser import SQLiteParser
 from utils.valid import parse_context
-from utils.db import find_target_source, in_order_traversal
+from utils.db import find_target_source, in_order_traversal, find_all_relevant_source_names
 from utils.optimizer import reduce_join_intermediates
 from models.Attribute import Attribute, AttributeType
 from models.Join import Join
@@ -10,10 +10,6 @@ from UnixSql import UnixAgg, UnixSelect, UnixGroupBy, UnixJoin, UnixOrder, UnixP
 import re
 from copy import deepcopy
 from os import path
-
-SELECT_PATH = path.join(path.dirname(__file__), 'select.py')
-GROUP_PATH = path.join(path.dirname(__file__), 'group.py')
-AGG_PATH = path.join(path.dirname(__file__), 'agg.py')
 
 STRIP_FN_AND_TABLE_REGEX = r'\b(SUM|COUNT|AVG|MIN|MAX)\((.*\.)?|\)'
 STRIP_FN_REGEX = r'\b(SUM|COUNT|AVG|MIN|MAX)\(|\)'
@@ -51,12 +47,16 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
     commands: List[str] = []
     select_core_ctx = select_stmt_ctx.select_core(0)
 
-    # List of all the available tables in the schema
-    sources = list(schema.values())
+    # List of all relevant source tables in known schema
+    sources = [deepcopy(source) for source in schema.values()
+               if source.name in find_all_relevant_source_names(select_core_ctx.from_clause())]
 
     # Track which clause types apply to which source tables (i.e. a WHERE condition that applies to table 1, etc.)
     attributes: List[Attribute] = map_table_attributes(
         select_stmt_ctx, sources)
+
+    sources = [deepcopy(source) for source in sources if source.name in [
+        attribute.source.name for attribute in attributes]]
 
     # Track all potential joins in the SQL statement, the presence of which drastically affects the path of logic
     joins: List[Join] = UnixJoin.extract_joins(select_core_ctx, sources)
@@ -181,11 +181,11 @@ def compute_sql_pipeline(select_stmt_ctx: SQLiteParser.Select_stmtContext, schem
 
     if groups or aggregates:
         if groups and aggregates:
-            commands[-1] += f' | {UnixGroupBy.compute_group_by_with_agg_command(groups + aggregates, sources[0].headers)} | tail -n+2'
+            commands[-1] += f' | {UnixGroupBy.compute_group_by_with_agg_command(groups + aggregates, sources[0])} | tail -n+2'
         elif groups:
-            commands[-1] += f' | {UnixGroupBy.compute_group_by_command(groups, sources[0].headers)}'
+            commands[-1] += f' | {UnixGroupBy.compute_group_by_command(groups, sources[0])}'
         elif aggregates:
-            commands[-1] += f' | {UnixAgg.compute_agg_command(aggregates, sources[0].headers)}'
+            commands[-1] += f' | {UnixAgg.compute_agg_command(aggregates, sources[0])}'
 
         sources[0].headers = groups + aggregates
 

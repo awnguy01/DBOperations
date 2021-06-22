@@ -18,14 +18,15 @@ def compute_select_command(condition: str, projections: List[str], source: Table
     """
     Modular function for translating WHERE clauses in the SQL statement into UNIX commands.
     """
-    # Call select.py with python3 (path to select.py is stored as a global constant in sql_executor.py)
+    # Call select.py with python3
     args = [f'python3 "{SELECT_PATH}"']
     # Append path to source table if not reading from stdin
     if not stdin:
         args.append("-i '" + source.full_path + "'")
 
     # Use the specified delimiter of the source table
-    args.append("-s '" + source.delimiter + "'")
+    delimiter = '\\t' if source.delimiter == '\t' else source.delimiter
+    args.append("-s '" + delimiter + "'")
 
     # Construct condition and projection arguments for select.py while replacing any column names with
     # field references

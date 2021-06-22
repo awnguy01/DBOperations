@@ -1,20 +1,26 @@
+from os import path
 import re
+from models.Attribute import Attribute
 from typing import List, Tuple
+from models.Table import Table
+
+AGG_PATH = path.join(path.dirname(__file__), '..', 'agg.py')
 
 
-def compute_agg_command(targets: List[str], src_headers: List[str]) -> str:
+def compute_agg_command(targets: List[Attribute], src: Table) -> str:
     """
     Modular function for translating any aggregate functions in the SQL statement into UNIX commands
     """
-    # Call agg.py with python3 (path to agg.py is stored as a global constant in sql_executor.py)
-    args = ['python3 "{AGG_PATH}"']
-    # Append arguments to specify header (program will always generate a header even if there is no
-    # header in the original source table) and field delimiter (default to comma for now)
-    args.append('-h -s ","')
+    # Call agg.py with python3
+    args = [f'python3 "{AGG_PATH}"']
+    # Append argument to specify field delimiter (using escaped character for tab delimiters).
+    # Use the escaped character for tab delimiters.
+    delimiter = '\\t' if src.delimiter == '\t' else src.delimiter
+    args.append(f'-s "{delimiter}"')
 
     # Separate aggregate function from its corresponding column into a tuple (i.e. max(#1) -> (max, #1))
     agg_fn_pairs: List[Tuple[str, str]] = [
-        re.findall(r'(.+)\((.+)\)', target)
+        re.findall(r'(.+)\((.+)\)', target.name)[0]
         for target
         in targets
     ]
@@ -31,12 +37,13 @@ def compute_agg_command(targets: List[str], src_headers: List[str]) -> str:
     fns_arg = ','.join(fn_arg_list)
     attributes_arg = ','.join(attribute_arg_list)
 
-    # Replace any header names with field references
-    for i, header in enumerate(src_headers):
-        attributes_arg = re.sub(fr'\b{header}\b', f'#{i + 1}',
+    # Replace any header names with field references (zero-indexed to match agg.py argument formatting)
+    for i, header in enumerate(src.headers):
+        attributes_arg = re.sub(fr'{header}\b', f'#{i}',
                                 attributes_arg, flags=re.IGNORECASE)
 
     args.append(f"-a '{attributes_arg}'")
     args.append(f"-f '{fns_arg}'")
+    args.append('| tail -n+2')
 
     return ' '.join(args)

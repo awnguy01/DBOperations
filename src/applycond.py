@@ -27,7 +27,8 @@ def myeval(op, line, arguments, data_type):
     :param line: line read from the input data file
     :return: column and constant converted into appropriate types
     '''
-    fields = line.split(arguments[4])
+    splitter = '\t' if arguments[4] == '\\t' else arguments[4]
+    fields = line.split(splitter)
     index = op[1:]
     # if a column is referred by a number
     if index.isdecimal():
