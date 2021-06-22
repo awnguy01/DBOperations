@@ -17,7 +17,7 @@ def change_test_dir(request):
 
 
 # Single table star projection
-PROJECT_STAR_FROM_ONE = ("PROJECT_STAR_FROM_ONE.csv",
+PROJECT_STAR_FROM_ONE = ("EMPLOYEES.csv",
                          "SELECT * FROM EMPLOYEES",
                          1, True, [], 0, 0)
 # Single table star projection with ordering, limit, and offset                         
